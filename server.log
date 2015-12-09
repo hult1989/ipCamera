@@ -1,0 +1,94 @@
+2015-12-09 10:51:40+0800 [-] Log opened.
+2015-12-09 10:51:40+0800 [-] IpcServerFactory starting on 8081
+2015-12-09 10:51:40+0800 [-] Starting factory <ipcserver.IpcServerFactory instance at 0x7f2728673440>
+2015-12-09 10:51:40+0800 [-] AppProxyFactory starting on 8082
+2015-12-09 10:51:40+0800 [-] Starting factory <ipcserver.AppProxyFactory instance at 0x7f27286734d0>
+2015-12-09 10:51:49+0800 [-] connection made with: IPv4Address(TCP, '127.0.0.1', 54250)
+2015-12-09 10:51:49+0800 [ipcserver.IpcServerFactory] ONLNE CAMERA CONNECTIONS: [<ipcserver.Session instance at 0x7f2728673cf8>]
+2015-12-09 10:51:49+0800 [ipcserver.IpcServerFactory] SESSIONS:
+	
+2015-12-09 10:51:49+0800 [ipcserver.IpcServerFactory] <ipcserver.Session instance at 0x7f2728673cf8>
+2015-12-09 10:52:00+0800 [ipcserver.AppProxyFactory] SESSIONS:
+	
+2015-12-09 10:52:00+0800 [ipcserver.AppProxyFactory] <ipcserver.Session instance at 0x7f2728673cf8>
+2015-12-09 10:52:00+0800 [ipcserver.AppProxyFactory] ONLNE APP CONNECTIONS: <AppProxy #0 on 8082>
+2015-12-09 10:52:00+0800 [-] msg from app:  audio
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 65536
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 54250) send message, len: 16300
+2015-12-09 10:52:00+0800 [IpcServer,0,127.0.0.1] Unhandled Error
+	Traceback (most recent call last):
+	  File "init.py", line 16, in <module>
+	    reactor.run()
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/base.py", line 1194, in run
+	    self.mainLoop()
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/base.py", line 1206, in mainLoop
+	    self.doIteration(t)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/epollreactor.py", line 396, in doPoll
+	    log.callWithLogger(selectable, _drdw, selectable, fd, event)
+	--- <exception caught here> ---
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/log.py", line 101, in callWithLogger
+	    return callWithContext({"system": lp}, func, *args, **kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/log.py", line 84, in callWithContext
+	    return context.call({ILogContext: newCtx}, func, *args, **kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/context.py", line 118, in callWithContext
+	    return self.currentContext().callWithContext(ctx, func, *args, **kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/context.py", line 81, in callWithContext
+	    return func(*args,**kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/posixbase.py", line 610, in _doReadOrWrite
+	    self._disconnectSelectable(selectable, why, inRead)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/posixbase.py", line 252, in _disconnectSelectable
+	    selectable.readConnectionLost(f)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/tcp.py", line 273, in readConnectionLost
+	    self.connectionLost(reason)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/tcp.py", line 293, in connectionLost
+	    protocol.connectionLost(reason)
+	exceptions.TypeError: connectionLost() takes exactly 1 argument (2 given)
+	
+2015-12-09 10:52:17+0800 [AppProxy,0,127.0.0.1] Unhandled Error
+	Traceback (most recent call last):
+	  File "init.py", line 16, in <module>
+	    reactor.run()
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/base.py", line 1194, in run
+	    self.mainLoop()
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/base.py", line 1206, in mainLoop
+	    self.doIteration(t)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/epollreactor.py", line 396, in doPoll
+	    log.callWithLogger(selectable, _drdw, selectable, fd, event)
+	--- <exception caught here> ---
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/log.py", line 101, in callWithLogger
+	    return callWithContext({"system": lp}, func, *args, **kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/log.py", line 84, in callWithContext
+	    return context.call({ILogContext: newCtx}, func, *args, **kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/context.py", line 118, in callWithContext
+	    return self.currentContext().callWithContext(ctx, func, *args, **kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/python/context.py", line 81, in callWithContext
+	    return func(*args,**kw)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/posixbase.py", line 610, in _doReadOrWrite
+	    self._disconnectSelectable(selectable, why, inRead)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/posixbase.py", line 252, in _disconnectSelectable
+	    selectable.readConnectionLost(f)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/tcp.py", line 273, in readConnectionLost
+	    self.connectionLost(reason)
+	  File "/usr/local/lib/python2.7/dist-packages/twisted/internet/tcp.py", line 293, in connectionLost
+	    protocol.connectionLost(reason)
+	exceptions.TypeError: connectionLost() takes exactly 1 argument (2 given)
+	
