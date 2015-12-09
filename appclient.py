@@ -56,8 +56,9 @@ class EchoClientFactory(ClientFactory):
 
 
 def main(reactor):
+    domain = 'localhost'
     factory = EchoClientFactory()
-    reactor.connectTCP('localhost', 8082, factory)
+    reactor.connectTCP(domain, 8082, factory)
     return factory.done
 
 

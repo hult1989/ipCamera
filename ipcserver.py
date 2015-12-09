@@ -10,8 +10,8 @@ BUF_SIZE = 5 * 1024 * 1024
 
 
 class Session:
-    def __init__(self, cameraTransport):
-        self.cameraTransport = cameraTransport
+    def __init__(self):
+        self.cameraTransport = None
         self.appTransports = list()
         self.pendingDefer = list()
         self.buf = bytearray(BUF_SIZE)
@@ -25,60 +25,59 @@ class Session:
 
 
 class IpcServer(Protocol):
-    def __init__(self, sessionList):
-        self.sessionList = sessionList
+    def __init__(self, session):
+        #self.sessionList = sessionList
+        self.session = session
 
-    def connectionLost(self):
-        log.msg('connection Lost with: ' + self.sessionList[0].cameraTransport)
+    def connectionLost(self, reason):
+        log.msg('connection Lost with: ' + str(self.session.cameraTransport))
+        log.msg('reason is: ' + str(reason))
    
     def connectionMade(self):
 	print ('connection made with: ' + str(self.transport.getPeer()))
-        self.sessionList.append(Session(self.transport))
-        log.msg('ONLNE CAMERA CONNECTIONS: ' + str(self.sessionList))
-        log.msg('SESSIONS:\n')
-        for session in self.sessionList:
-            log.msg(str(session))
+        self.session.cameraTransport = self.transport
+        log.msg('ONLNE CAMERA CONNECTIONS: ' + str(self.session.cameraTransport))
+        log.msg('TRANSPORT OBJECT: ' + str(vars(self.transport)))
+        log.msg('CLIENT: ' + str(self.transport.client))
+        log.msg('SOCKET: ' + str(self.transport.socket))
 
     def dataReceived(self, data):
         log.msg('Camera ' + str(self.transport.getPeer()) + ' send message, len: ' + str(len(data)))
-        for session in self.sessionList:
-            for app in session.appTransports:
+        for app in self.session.appTransports:
                 app.write(data)
 
 
 
-
 class AppProxyFactory(Factory):
-    def __init__(self, sessionList):
-        self.sessionList = sessionList
+    def __init__(self, session):
+        self.session = session
         
     def buildProtocol(self, addr):
-        return AppProxy(self.sessionList)
+        return AppProxy(self.session)
 
 
 class AppProxy(Protocol):
-    def __init__(self, sessionList):
-        self.sessionList = sessionList
+    def __init__(self, session):
+        #self.sessionList = sessionList
+        self.session = session
 
-    def connectionLost(self):
-        log.msg('connection Lost with: ' + self.sessionList[0].appTransports[-1])
+    def connectionLost(self, reason):
+        log.msg('connection Lost with: ' + str(self.session.appTransports[-1]))
+        log.msg('reason: ', str(reason))
+        sesf.session.appTransports.pop()
    
     def connectionMade(self):
-        for session in self.sessionList:
-            session.appTransports.append(self.transport)
-        log.msg('SESSIONS:\n')
-        for session in self.sessionList:
-            log.msg(str(session))
-        log.msg('ONLNE APP CONNECTIONS: ' + str(self.sessionList[0].appTransports[-1]))
+        self.session.appTransports.append(self.transport)
+        log.msg('ONLNE APP CONNECTIONS: ' + str(self.session.appTransports[-1]))
 
     def dataReceived(self, data):
-        print 'msg from app: ', data
-        self.sessionList[0].cameraTransport.write(data)
+        print 'msg from app, len: ', len(data)
+        self.session.cameraTransport.write(data)
 
 
 class IpcServerFactory(Factory):
-    def __init__(self, sessionList):
-        self.protocol = IpcServer(sessionList)
+    def __init__(self, session):
+        self.protocol = IpcServer(session)
 
     def buildProtocol(self, addr):
         return self.protocol
@@ -117,6 +116,6 @@ class MainPage(Resource):
 
         
 '''
-SESSIONLIST = list()
-ipcServerFactory = IpcServerFactory(SESSIONLIST)
-appProxyFactory = AppProxyFactory(SESSIONLIST)
+SESSION = Session()
+ipcServerFactory = IpcServerFactory(SESSION)
+appProxyFactory = AppProxyFactory(SESSION)

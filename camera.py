@@ -1,5 +1,6 @@
 import socket
 from twisted.internet.protocol import Protocol, ClientFactory
+#domain = 'huahai'
 domain = 'localhost'
 from readFile import getPacketsFromFile, generateFileSlice
 
@@ -37,6 +38,8 @@ class Camera(Protocol):
             except Exception as e:
                 print e
                 self.transport.loseConnection()
+        else:
+            self.transport.write('camers received: %s' %(data,))
 
 
 class CameraFactory(ClientFactory):
@@ -53,9 +56,9 @@ class CameraFactory(ClientFactory):
         print 'Lost connection, reason: ', reason
 
     def clientConnectionFailed(self, connector, reason):
-        print 'Lost failed, reason: ', reason
+        print 'connect %s failed, reason: %s ' %(str(connector), str(reason))
 
 if __name__ == '__main__':
     from twisted.internet import reactor
-    reactor.connectTCP('localhost', 8081, CameraFactory())
+    reactor.connectTCP(domain, 8081, CameraFactory())
     reactor.run()
