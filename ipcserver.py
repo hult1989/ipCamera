@@ -67,10 +67,13 @@ class AppProxy(Protocol):
         log.msg('connection Lost with: ' + str(self.session.appTransports[-1]))
         log.msg('reason: ', str(reason))
         sesf.session.appTransports.pop()
+        for app in self.session.appTransports:
+            log.msg('connected app: ' + str(app))
    
     def connectionMade(self):
         self.session.appTransports.append(self.transport)
-        log.msg('ONLNE APP CONNECTIONS: ' + str(self.session.appTransports[-1]))
+        for app in self.session.appTransports:
+            log.msg('connected app: ' + str(app))
 
     def dataReceived(self, data):
         print 'msg from app, len: ', len(data)

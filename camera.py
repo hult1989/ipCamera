@@ -39,6 +39,7 @@ class Camera(Protocol):
                 print e
                 self.transport.loseConnection()
         else:
+            print 'camera received from app: ', data
             self.transport.write('camers received: %s' %(data,))
 
 
