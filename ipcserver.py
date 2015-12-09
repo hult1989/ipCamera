@@ -37,9 +37,11 @@ class IpcServer(Protocol):
 	print ('connection made with: ' + str(self.transport.getPeer()))
         self.session.cameraTransport = self.transport
         log.msg('ONLNE CAMERA CONNECTIONS: ' + str(self.session.cameraTransport))
+        '''
         log.msg('TRANSPORT OBJECT: ' + str(vars(self.transport)))
         log.msg('CLIENT: ' + str(self.transport.client))
         log.msg('SOCKET: ' + str(self.transport.socket))
+        '''
 
     def dataReceived(self, data):
         log.msg('Camera ' + str(self.transport.getPeer()) + ' send message, len: ' + str(len(data)))

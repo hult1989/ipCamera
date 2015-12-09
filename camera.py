@@ -1,7 +1,7 @@
 import socket
 from twisted.internet.protocol import Protocol, ClientFactory
-#domain = 'huahai'
-domain = 'localhost'
+domain = 'huahai'
+#domain = 'localhost'
 from readFile import getPacketsFromFile, generateFileSlice
 
 def socketSendInPartial(sock, message):
