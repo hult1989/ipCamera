@@ -48,16 +48,17 @@ class Camera(Protocol):
     def dataReceived(self,data):
         self.buf += data
         packet, self.buf = getOnePacketFromBuf(self.buf)
-        if (packet is not None) and(packet.payloadSize == 0):
+        if (packet is not None) and(packet.action == '\x01' and packet.cmd == '\x01'):
             payload = generateFileListPayload(getFileList('./audio'))
             for packetStr in buffer2packets(payload):
-                print packetStr
+                packetStr = str(FileListPacket(packetStr))
                 self.transport.write(packetStr)
         else:
             print str(packet)
             name = packet.payload[:packet.payload.find('\x00')]
             print name, ' response with app request, file len: ', len(self.fileBuf[name])
             for packetPayload in buffer2packets(self.fileBuf[name]):
+                packetPayload = str(FilePacket(packetPayload))
                 self.transport.write(packetPayload)
                 print 'send file slice, packet len: ', len(packetPayload)
             print 'all file sended!'

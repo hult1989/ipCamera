@@ -4,7 +4,7 @@ from twisted.web.server import Site, NOT_DONE_YET
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
-#from ipcserver import IpcServerFactory
+from IpcPacket import *
 
 BUF_SIZE = 5 * 1024 * 1024
 
@@ -28,6 +28,7 @@ class IpcServer(Protocol):
     def __init__(self, session):
         #self.sessionList = sessionList
         self.session = session
+        self.name = ''
 
     def connectionLost(self, reason):
         log.msg('connection Lost with: ' + str(self.session.cameraTransport))
@@ -47,6 +48,21 @@ class IpcServer(Protocol):
         log.msg('Camera ' + str(self.transport.getPeer()) + ' send message, len: ' + str(len(data)))
         for app in self.session.appTransports:
                 app.write(data)
+        self.session.buf += data
+        packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
+        while packet:
+            if packet.action == '\x02': 
+                if packet.cmd == '\x01': 
+                    with open('./namelist.log', 'a') as f:
+                        self.name = packet.payload[:packet.payload.find('\x00')]
+                        log.msg('log filename: ' + self.name) 
+                        f.write(self.name)
+                if packet.cmd == '\x02':
+                    with open(self.name, 'a') as f:
+                        f.write(packe.payload)
+                    log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
+            packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
+
 
 
 
@@ -62,6 +78,7 @@ class AppProxy(Protocol):
     def __init__(self, session):
         #self.sessionList = sessionList
         self.session = session
+        self.buf = ''
 
     def connectionLost(self, reason):
         log.msg('connection Lost with: ' + str(self.session.appTransports[-1]))
@@ -78,6 +95,13 @@ class AppProxy(Protocol):
     def dataReceived(self, data):
         print 'msg from app, len: ', len(data)
         self.session.cameraTransport.write(data)
+        self.buf += data
+        packet, self.buf = getOnePacketFromBuf(self.buf)
+        while packet:
+            if packet.action == '\x01' and (packet.cmd == '\x01' or packet.cmd == '\x02'):
+                with open('./AppPacketRequest.log', 'a') as f:
+                    f.write(str(packet))
+            packet, self.buf = getOnePacketFromBuf(self.buf)
 
 
 class IpcServerFactory(Factory):

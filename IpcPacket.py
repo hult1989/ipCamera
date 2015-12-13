@@ -52,6 +52,11 @@ class IpcPacket(object):
 
 
 class FileListPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x02'
+        self.cmd = '\x01'
+
     def getFileListFromPacket(self):
         if self.payloadSize != len(self.payload):
             raise PayloadSizeError
@@ -62,6 +67,25 @@ class FileListPacket(IpcPacket):
             #print filename[:filename.find('\x00')]
             #yield str(filename)
             yield filename[:filename.find('\x00')]
+
+class GetListCmdPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x01'
+        self.cmd = '\x01'
+
+class GetFileCmdPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x01'
+        self.cmd = '\x02'
+
+class FilePacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x02'
+        self.cmd = '\x02'
+
 
 
 
@@ -85,7 +109,7 @@ def generateFileSlice(buf):
         generated += pieceSize
 
 def addHeader(fileSlice, totalSize):
-    result = '\x55\xaa\x02\x00' + struct.pack('!I', totalSize) + struct.pack('!H', len(fileSlice)) + '\x02' + '\x00' + fileSlice
+    result = '\x55\xaa\x00\x00' + struct.pack('!I', totalSize) + struct.pack('!H', len(fileSlice)) + '\x00' + '\x00' + fileSlice
     return result
 
 def generatePacketWithHeader(filename):
@@ -128,7 +152,6 @@ def getOnePacketFromBuf(buf):
 
 
 if __name__ == '__main__':
-    payload = generateFileListPayload(getFileList('./video'))
     '''
     print 'ABOVE IS DIRECT READ FROM PAYLOAD==============='
     print 'BELOW IS READ FROM PAYLOAD======================'
@@ -138,10 +161,9 @@ if __name__ == '__main__':
         i += 1
     #print 'TOTAL PAYLOAD SIZE OF NANE LIST IS : ', len(payload)
     '''
-    for packetStr in buffer2packets(payload):
-        packet = FileListPacket(packetStr)
-        for name in packet.getFileListFromPacket():
-            print name
+    packet = IpcPacket(addHeader('', 0))
+    packet = FilePacket(packet)
+    print ord(packet.action), ord(packet.cmd)
     
 
 

@@ -36,7 +36,7 @@ class AppClient(Protocol):
                     self.nameList.append(name)
                 packet, self.buf = getOnePacketFromBuf(self.buf)
             print '===All packet received!==='
-            packet = IpcPacket(NamePayload(self.nameList[-1]))
+            packet = GetListCmdPacket(str(IpcPacket(NamePayload(self.nameList[-1]))))
             print '===send file request!==='
             print str(packet)
             self.transport.write(str(packet))
