@@ -147,7 +147,17 @@ def getOnePacketFromBuf(buf):
     msgEnd  = start + struct.unpack('!H', buf[start+8:start+10])[0] + 12
     if msgEnd > len(buf):
         return None, buf
-    return FileListPacket(buf[start:msgEnd]), buf[msgEnd:]
+    packet = IpcPacket(buf[start:msgEnd])
+    if packet.action == '\x01':
+        if packet.cmd == '\x01':
+            return GetListCmdPacket(str(packet)),buf[msgEnd:]
+        if packet.cmd == '\x02':
+            return GetFileCmdPacket(str(packet)),buf[msgEnd:]
+    if packet.action == '\x02':
+        if packet.cmd == '\x01':
+            return FileListPacket(str(packet)),buf[msgEnd:]
+        if packet.cmd == '\x02':
+            return FilePacket(str(packet)),buf[msgEnd:]
 
 
 

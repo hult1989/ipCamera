@@ -34,6 +34,7 @@ def readFileToDictBuf(path):
     for name in getFileList(path):
         with open(name) as f:
             dictBuf[name] = f.read()
+            print name, ' ', len(dictBuf[name])
     return dictBuf
 
 
@@ -50,14 +51,15 @@ class Camera(Protocol):
         packet, self.buf = getOnePacketFromBuf(self.buf)
         if (packet is not None) and(packet.action == '\x01' and packet.cmd == '\x01'):
             payload = generateFileListPayload(getFileList('./audio'))
+            print 'response with file list'
             for packetStr in buffer2packets(payload):
                 packetStr = str(FileListPacket(packetStr))
                 self.transport.write(packetStr)
-        else:
-            print str(packet)
+        elif (packet is not None) and(packet.action == '\x01' and packet.cmd == '\x02'): 
             name = packet.payload[:packet.payload.find('\x00')]
             print name, ' response with app request, file len: ', len(self.fileBuf[name])
             for packetPayload in buffer2packets(self.fileBuf[name]):
+                print 'PACKET PRARAMS: ', ord(FilePacket(packetPayload).action), ord(FilePacket(packetPayload).cmd)
                 packetPayload = str(FilePacket(packetPayload))
                 self.transport.write(packetPayload)
                 print 'send file slice, packet len: ', len(packetPayload)

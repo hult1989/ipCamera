@@ -22,7 +22,7 @@ class AppClient(Protocol):
         self.nameList = []
 
     def connectionMade(self):
-        self.transport.write(addHeader('', 0))
+        self.transport.write(str(GetListCmdPacket(addHeader('', 0))))
 
     def dataReceived(self, data):
         NamePayload = lambda name: addHeader(name + '\x00' * (32-len(name)), 32)
@@ -36,7 +36,7 @@ class AppClient(Protocol):
                     self.nameList.append(name)
                 packet, self.buf = getOnePacketFromBuf(self.buf)
             print '===All packet received!==='
-            packet = GetListCmdPacket(str(IpcPacket(NamePayload(self.nameList[-1]))))
+            packet = GetFileCmdPacket(str(IpcPacket(NamePayload(self.nameList[-1]))))
             print '===send file request!==='
             print str(packet)
             self.transport.write(str(packet))
@@ -45,9 +45,10 @@ class AppClient(Protocol):
             self.buf += data
             packet, self.buf = getOnePacketFromBuf(self.buf)
             while packet is not None:
-                with open('./appCache', 'a') as f:
-                    f.write(packet.payload)
-                    print 'add to file, len: ', len(packet.payload), ' ', packet.payloadSize
+                if packet.action == '\x02' and packet.cmd == '\x02':
+                    with open('./appCache', 'a') as f:
+                        f.write(packet.payload)
+                        print 'add to file, len: ', len(packet.payload), ' ', packet.payloadSize
                 packet, self.buf = getOnePacketFromBuf(self.buf)
             print '===All packet received!==='
             

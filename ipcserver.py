@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 from twisted.web.resource import Resource
 from twisted.internet.protocol import Factory, Protocol
 from twisted.web.server import Site, NOT_DONE_YET
@@ -14,7 +15,7 @@ class Session:
         self.cameraTransport = None
         self.appTransports = list()
         self.pendingDefer = list()
-        self.buf = bytearray(BUF_SIZE)
+        self.buf = ''
     
     def addAppTransport(self, transport):
         self.appTransports.append(transport)
@@ -51,17 +52,18 @@ class IpcServer(Protocol):
         self.session.buf += data
         packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
         while packet:
-            if packet.action == '\x02': 
-                if packet.cmd == '\x01': 
-                    with open('./namelist.log', 'a') as f:
-                        self.name = packet.payload[:packet.payload.find('\x00')]
-                        log.msg('log filename: ' + self.name) 
-                        f.write(self.name)
-                if packet.cmd == '\x02':
-                    with open(self.name, 'a') as f:
-                        f.write(packe.payload)
-                    log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
-            packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
+			print ord(packet.action), ord(packet.cmd)
+			if packet.cmd == '\x01': 
+				with open('./namelist.log', 'a') as f:
+					for name in packet.getFileListFromPacket():
+						self.name = name
+						#log.msg('log filename: ' + self.name) 
+						f.write(self.name)
+			if packet.cmd == '\x02':
+				with open(self.name, 'a') as f:
+					f.write(packet.payload)
+				log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
+			packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
 
 
 
@@ -93,15 +95,14 @@ class AppProxy(Protocol):
             log.msg('connected app: ' + str(app))
 
     def dataReceived(self, data):
-        print 'msg from app, len: ', len(data)
         self.session.cameraTransport.write(data)
         self.buf += data
         packet, self.buf = getOnePacketFromBuf(self.buf)
         while packet:
-            if packet.action == '\x01' and (packet.cmd == '\x01' or packet.cmd == '\x02'):
-                with open('./AppPacketRequest.log', 'a') as f:
-                    f.write(str(packet))
-            packet, self.buf = getOnePacketFromBuf(self.buf)
+			if packet.action == '\x01' and (packet.cmd == '\x01' or packet.cmd == '\x02'):
+				with open('./AppPacketRequest.log', 'a') as f:
+					f.write(str(packet))
+			packet, self.buf = getOnePacketFromBuf(self.buf)
 
 
 class IpcServerFactory(Factory):
