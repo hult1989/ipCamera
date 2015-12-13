@@ -1,8 +1,13 @@
 import socket
 from twisted.internet.protocol import Protocol, ClientFactory
+import os
+
+
+
+from  IpcPacket import *
+
 domain = 'huahai'
 #domain = 'localhost'
-from readFile import getPacketsFromFile, generateFileSlice
 
 def socketSendInPartial(sock, message):
     alreadySent = 0
@@ -24,25 +29,42 @@ sock.close()
 
 '''
 
+def readFileToDictBuf(path):
+    dictBuf = dict()
+    for name in getFileList(path):
+        with open(name) as f:
+            dictBuf[name] = f.read()
+    return dictBuf
+
+
 class Camera(Protocol):
+    def __init__(self):
+        self.buf = ''
+        self.fileBuf = readFileToDictBuf('./audio')
+
+    def connectionMade(self):
+        self.transport.write('NONESENSE HEADER')
 
     def dataReceived(self,data):
-        if data.strip() == 'audio':
-            print ('REVEIVED SIG, GONA READFILE')
-            try:
-                for p in generateFileSlice('./TV.mp3'):
-                    print 'Send video clip, length: ', len(p)
-                    self.transport.write(p)
-                print 'FINISH SENDING ALL FILE!!!!'
-                self.transport.loseConnection()
-            except Exception as e:
-                print e
-                self.transport.loseConnection()
+        self.buf += data
+        packet, self.buf = getOnePacketFromBuf(self.buf)
+        if (packet is not None) and(packet.payloadSize == 0):
+            payload = generateFileListPayload(getFileList('./audio'))
+            for packetStr in buffer2packets(payload):
+                print packetStr
+                self.transport.write(packetStr)
         else:
-            print 'camera received from app: ', data
-            self.transport.write('camers received: %s' %(data,))
+            print str(packet)
+            name = packet.payload[:packet.payload.find('\x00')]
+            print name, ' response with app request, file len: ', len(self.fileBuf[name])
+            for packetPayload in buffer2packets(self.fileBuf[name]):
+                self.transport.write(packetPayload)
+                print 'send file slice, packet len: ', len(packetPayload)
+            print 'all file sended!'
 
 
+
+            
 class CameraFactory(ClientFactory):
     def startedConnecting(self, connector):
         print 'started to connect'

@@ -2,43 +2,58 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
-from __future__ import print_function
+#from __future__ import print_function
 
 from twisted.internet import task
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.protocols.basic import LineReceiver
 import os.path
-
 import time
 
+from IpcPacket import *
 
-class EchoClient(Protocol):
+
+class AppClient(Protocol):
+    REQUEST_FILE = False
+
+    def __init__(self):
+        self.buf = ''
+        self.nameList = []
 
     def connectionMade(self):
-        self.transport.write("audio")
+        self.transport.write(addHeader('', 0))
 
-
-
-    '''
-    def lineReceived(self, line):
-        print("receive:", line)
-        if line == self.end:
-            self.transport.loseConnection()
-    '''
     def dataReceived(self, data):
-        with open('appRecvFile.mp3', 'a') as f:
-            f.write(data)
-        try:
-            if os.path.getsize('./appRecvFile.mp3') >= 1096 * 1024:
-                print ('ALL DATA GOT, total length: ' + str(os.path.getsize('./appRecvFile.mp3')))
-        except:
-            print ('FILE DOES EXIST')
+        NamePayload = lambda name: addHeader(name + '\x00' * (32-len(name)), 32)
+        print '==================  RECEIVED DATA LENGTH  %d  =====================' %(len(data,))
+        if not self.REQUEST_FILE:
+            self.buf += data
+            packet, self.buf = getOnePacketFromBuf(self.buf)
+            while packet is not None:
+                for name in packet.getFileListFromPacket():
+                    print name
+                    self.nameList.append(name)
+                packet, self.buf = getOnePacketFromBuf(self.buf)
+            print '===All packet received!==='
+            packet = IpcPacket(NamePayload(self.nameList[-1]))
+            print '===send file request!==='
+            print str(packet)
+            self.transport.write(str(packet))
+            self.REQUEST_FILE = True
+        else:
+            self.buf += data
+            packet, self.buf = getOnePacketFromBuf(self.buf)
+            while packet is not None:
+                with open('./appCache', 'a') as f:
+                    f.write(packet.payload)
+                    print 'add to file, len: ', len(packet.payload), ' ', packet.payloadSize
+                packet, self.buf = getOnePacketFromBuf(self.buf)
+            print '===All packet received!==='
+            
 
-
-
-class EchoClientFactory(ClientFactory):
-    protocol = EchoClient
+class AppClientFactory(ClientFactory):
+    protocol = AppClient
 
     def __init__(self):
         self.done = Deferred()
@@ -56,8 +71,9 @@ class EchoClientFactory(ClientFactory):
 
 
 def main(reactor):
-    domain = 'localhost'
-    factory = EchoClientFactory()
+    #domain = 'localhost'
+    domain = 'huahai'
+    factory = AppClientFactory()
     reactor.connectTCP(domain, 8082, factory)
     return factory.done
 
