@@ -5,6 +5,7 @@ from twisted.web.server import Site, NOT_DONE_YET
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
+import time
 from IpcPacket import *
 
 BUF_SIZE = 5 * 1024 * 1024
@@ -30,6 +31,8 @@ class IpcServer(Protocol):
         #self.sessionList = sessionList
         self.session = session
         self.name = ''
+        self.timestamp = 0
+        self.totalSize = 0
 
     def connectionLost(self, reason):
         log.msg('connection Lost with: ' + str(self.session.cameraTransport))
@@ -44,26 +47,37 @@ class IpcServer(Protocol):
         log.msg('CLIENT: ' + str(self.transport.client))
         log.msg('SOCKET: ' + str(self.transport.socket))
         '''
+    def calcRate(self, data):
+        now = time.time()
+        if self.timestamp == 0 and self.totalSize == 0:
+            self.timestamp = now
+            self.totalSize = len(data)
+        else:
+            self.totalSize += len(data)
+            if now - self.timestamp > 10:
+                log.msg('CURRENT RATE: %.1f KB/s' %( self.totalSize / float(now - self.timestamp) / 1024,))
+                self.timestamp = 0
+                self.totalSize = 0
+
 
     def dataReceived(self, data):
+        self.calcRate(data)
         log.msg('Camera ' + str(self.transport.getPeer()) + ' send message, len: ' + str(len(data)))
         for app in self.session.appTransports:
-                app.write(data)
+            app.write(data)
         self.session.buf += data
         packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
         while packet:
-			print ord(packet.action), ord(packet.cmd)
-			if packet.cmd == '\x01': 
-				with open('./namelist.log', 'a') as f:
-					for name in packet.getFileListFromPacket():
-						self.name = name
-						#log.msg('log filename: ' + self.name) 
-						f.write(self.name)
-			if packet.cmd == '\x02':
-				with open(self.name, 'a') as f:
-					f.write(packet.payload)
-				log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
-			packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
+            if packet.cmd == '\x01': 
+                with open('./namelist.log', 'a') as f:
+                    for name in packet.getFileListFromPacket():
+                        self.name = name
+                        f.write(self.name)
+            if packet.cmd == '\x02':
+                with open(self.name, 'a') as f:
+                    f.write(packet.payload)
+                    #log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
+            packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
 
 
 

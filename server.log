@@ -1,16 +1,11 @@
-2015-12-09 14:50:38+0800 [-] Log opened.
-2015-12-09 14:50:38+0800 [-] IpcServerFactory starting on 8081
-2015-12-09 14:50:38+0800 [-] Starting factory <ipcserver.IpcServerFactory instance at 0x7fc654a44368>
-2015-12-09 14:50:38+0800 [-] AppProxyFactory starting on 8082
-2015-12-09 14:50:38+0800 [-] Starting factory <ipcserver.AppProxyFactory instance at 0x7fc654a443f8>
-2015-12-09 14:50:42+0800 [-] connection made with: IPv4Address(TCP, '127.0.0.1', 58542)
-2015-12-09 14:50:42+0800 [ipcserver.IpcServerFactory] ONLNE CAMERA CONNECTIONS: <IpcServer #0 on 8081>
-2015-12-09 14:50:42+0800 [ipcserver.IpcServerFactory] TRANSPORT OBJECT: {'_tempDataBuffer': [], 'fileno': <bound method _socketobject.fileno of <socket._socketobject object at 0x7fc654a2f130>>, 'protocol': <ipcserver.IpcServer instance at 0x7fc654a443b0>, 'reactor': <twisted.internet.epollreactor.EPollReactor object at 0x7fc654f064d0>, 'hostname': '127.0.0.1', '_tempDataLen': 0, 'server': <<class 'twisted.internet.tcp.Port'> of ipcserver.IpcServerFactory on 8081>, 'sessionno': 0, 'logstr': 'IpcServer,0,127.0.0.1', 'client': ('127.0.0.1', 58542), 'connected': 1, 'repstr': '<IpcServer #0 on 8081>', 'socket': <socket._socketobject object at 0x7fc654a2f130>}
-2015-12-09 14:50:42+0800 [ipcserver.IpcServerFactory] CLIENT: ('127.0.0.1', 58542)
-2015-12-09 14:50:42+0800 [ipcserver.IpcServerFactory] SOCKET: <socket._socketobject object at 0x7fc654a2f130>
-2015-12-09 14:50:43+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 58542) send message, len: 3
-2015-12-09 14:50:44+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 58542) send message, len: 3
-2015-12-09 14:50:45+0800 [IpcServer,0,127.0.0.1] Camera IPv4Address(TCP, '127.0.0.1', 58542) send message, len: 4
-2015-12-09 15:17:58+0800 [IpcServer,0,127.0.0.1] connection Lost with: <IpcServer #0 on 8081>
-2015-12-09 15:17:58+0800 [IpcServer,0,127.0.0.1] reason is: [Failure instance: Traceback (failure with no frames): <class 'twisted.internet.error.ConnectionDone'>: Connection was closed cleanly.
-	]
+2015-12-14 10:55:02+0800 [-] Log opened.
+2015-12-14 10:55:02+0800 [-] IpcServerFactory starting on 8081
+2015-12-14 10:55:02+0800 [-] Starting factory <ipcserver.IpcServerFactory instance at 0x7ff89c5eea28>
+2015-12-14 10:55:02+0800 [-] AppProxyFactory starting on 8082
+2015-12-14 10:55:02+0800 [-] Starting factory <ipcserver.AppProxyFactory instance at 0x7ff89c5eeab8>
+2015-12-14 10:55:03+0800 [-] Received SIGINT, shutting down.
+2015-12-14 10:55:03+0800 [ipcserver.IpcServerFactory] (TCP Port 8081 Closed)
+2015-12-14 10:55:03+0800 [-] Stopping factory <ipcserver.IpcServerFactory instance at 0x7ff89c5eea28>
+2015-12-14 10:55:03+0800 [ipcserver.AppProxyFactory] (TCP Port 8082 Closed)
+2015-12-14 10:55:03+0800 [-] Stopping factory <ipcserver.AppProxyFactory instance at 0x7ff89c5eeab8>
+2015-12-14 10:55:03+0800 [-] Main loop terminated.

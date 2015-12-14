@@ -87,6 +87,18 @@ class FilePacket(IpcPacket):
         self.cmd = '\x02'
 
 
+class GetStreamingPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x01'
+        self.cmd = '\x03'
+
+
+class VideoStreamingPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x02'
+        self.cmd = '\x03'
 
 
 ################################################################
@@ -135,7 +147,22 @@ def generateFileListPayload(namelist):
             payload += name + '\x00' * (32 - len(name))
             #print 'name in payload is: ', payload[-32:]
     return payload
-                
+
+def getPacketFromFactory(strMsg):
+    packet = IpcPacket(strMsg)
+    if packet.action == '\x01':
+        if packet.cmd == '\x01':
+            return GetListCmdPacket(str(packet))
+        if packet.cmd == '\x02':
+            return GetFileCmdPacket(str(packet))
+    if packet.action == '\x02':
+        if packet.cmd == '\x01':
+            return FileListPacket(str(packet))
+        if packet.cmd == '\x02':
+            return FilePacket(str(packet))
+
+
+
 
 def getOnePacketFromBuf(buf):
     try:
@@ -147,17 +174,7 @@ def getOnePacketFromBuf(buf):
     msgEnd  = start + struct.unpack('!H', buf[start+8:start+10])[0] + 12
     if msgEnd > len(buf):
         return None, buf
-    packet = IpcPacket(buf[start:msgEnd])
-    if packet.action == '\x01':
-        if packet.cmd == '\x01':
-            return GetListCmdPacket(str(packet)),buf[msgEnd:]
-        if packet.cmd == '\x02':
-            return GetFileCmdPacket(str(packet)),buf[msgEnd:]
-    if packet.action == '\x02':
-        if packet.cmd == '\x01':
-            return FileListPacket(str(packet)),buf[msgEnd:]
-        if packet.cmd == '\x02':
-            return FilePacket(str(packet)),buf[msgEnd:]
+    return getPacketFromFactory(buf[start:msgEnd]), buf[msgEnd:]
 
 
 
@@ -172,8 +189,9 @@ if __name__ == '__main__':
     #print 'TOTAL PAYLOAD SIZE OF NANE LIST IS : ', len(payload)
     '''
     packet = IpcPacket(addHeader('', 0))
-    packet = FilePacket(packet)
-    print ord(packet.action), ord(packet.cmd)
+    packet = FileListPacket(packet)
+    print isinstance(packet, FilePacket)
+    print isinstance(packet, FileListPacket)
     
 
 
