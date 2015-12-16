@@ -6,8 +6,8 @@ import os
 
 from  IpcPacket import *
 
-domain = 'huahai'
-#domain = 'localhost'
+#domain = 'huahai'
+domain = 'localhost'
 
 def socketSendInPartial(sock, message):
     alreadySent = 0
@@ -44,18 +44,31 @@ class Camera(Protocol):
         self.fileBuf = readFileToDictBuf('audio')
 
     def connectionMade(self):
-        self.transport.write('NONESENSE HEADER')
+        helloPacket = HelloPacket(str(IpcPacket(addHeader('alice', 5))))
+        print 'Send data:  ', str(helloPacket)
+        self.transport.write(str(helloPacket))
 
-    def dataReceived(self,data):
-        self.buf += data
-        packet, self.buf = getOnePacketFromBuf(self.buf)
+    def processPacket(self, packet):
         if isinstance(packet, GetListCmdPacket):
             payload = generateFileListPayload(getFileList('audio'))
             print 'response with file list'
             for packetStr in buffer2packets(payload):
                 packetStr = str(FileListPacket(packetStr))
                 self.transport.write(packetStr)
-        elif isinstance(packet, GetFileCmdPacket):
+
+
+    def dataReceived(self,data):
+        print data
+        self.buf += data
+        packet, self.buf = getOnePacketFromBuf(self.buf)
+        if not packet:
+            return
+        self.processPacket(packet)
+
+        '''
+        se
+        if isinstance(packet, GetListCmdPacket):
+                    elif isinstance(packet, GetFileCmdPacket):
             name = packet.payload[:packet.payload.find('\x00')]
             #print name, ' response with app request, file len: ', len(self.fileBuf[name])
             for packetPayload in buffer2packets(self.fileBuf[name]):
@@ -64,6 +77,7 @@ class Camera(Protocol):
                 #print 'send file slice, packet len: ', len(packetPayload)
             #print 'all file sended!'
         #elif isinstance(packet, GetStreamingPacket):
+        '''
 
 
 

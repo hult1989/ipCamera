@@ -7,42 +7,32 @@ from twisted.python import log
 from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
 import time
 from IpcPacket import *
+from Session import *
 
-BUF_SIZE = 5 * 1024 * 1024
 
-
-class Session:
-    def __init__(self):
-        self.cameraTransport = None
-        self.appTransports = list()
-        self.pendingDefer = list()
-        self.buf = ''
-        self.name = ''
-
-    
-    def addAppTransport(self, transport):
-        self.appTransports.append(transport)
-
-    def addDefer(self, d):
-        self.pendingDefer.append(d)
 
 
 
 class IpcServer(Protocol):
-    def __init__(self, session):
-        #self.sessionList = sessionList
-        self.session = session
+    def __init__(self, sessionList):
+        self.sessionList = sessionList
         self.timestamp = 0
         self.totalSize = 0
+        self.serverBuf = dict()
+
+    def cameraConnected(self, cameraId, cameraPort):
+        self.sessionList.addSession(cameraId, Session(cameraId, cameraPort))
+        log.msg('==== camera %s connected=============' %(cameraId))
+        for session in self.sessionList.getAllSession():
+            log.msg('ACTIVE SESSION' + str(vars(session)))
+
 
     def connectionLost(self, reason):
-        log.msg('connection Lost with: ' + str(self.session.cameraTransport))
+        #log.msg('connection Lost with: ' + str(self.session.cameraTransport))
         log.msg('reason is: ' + str(reason))
    
     def connectionMade(self):
 	print ('connection made with: ' + str(self.transport.getPeer()))
-        self.session.cameraTransport = self.transport
-        log.msg('ONLNE CAMERA CONNECTIONS: ' + str(self.session.cameraTransport))
         '''
         log.msg('TRANSPORT OBJECT: ' + str(vars(self.transport)))
         log.msg('CLIENT: ' + str(self.transport.client))
@@ -62,70 +52,111 @@ class IpcServer(Protocol):
 
 
     def dataReceived(self, data):
-        self.calcRate(data)
-        log.msg('Camera ' + str(self.transport.getPeer()) + ' send message, len: ' + str(len(data)))
-        for app in self.session.appTransports:
-            app.write(data)
-        self.session.buf += data
-        packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
+
+        packet, buf = getOnePacketFromBuf(data)
+        self.cameraConnected(packet.payload, self.transport)
+        
+        '''
+        session = self.sessionList.getSessionByCamPort(self.transport)
+        log.msg( session.cameraId + ' send message, lenth: ' + str(len(data)))
+        session.getActiveApp.write(data)
+
+        if not self.serverBuf.has_key(str(self.transport)):
+            self.serverBuf[str(self.transport)] = ''
+        self.serverBuf[str(self.transport)] += data
+        packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
         while packet:
-            if packet.cmd == '\x01': 
+            if isinstance(packet, HelloPacket):
+                self.cameraConnected(packet.payload, self.transport)
+            elif packet.cmd == '\x01':  
                 with open('./namelist.log', 'w') as f:
 					for name in getFileListFromPayload(packet.payload):
 						f.write(name + '\n')
-            if packet.cmd == '\x02':
-				log.msg('WRITE TO FILE%s' %(self.session.name))
-				with open(self.session.name, 'a') as f:
-					f.write(packet.payload)
+            elif packet.cmd == '\x02':
+                log.msg('WRITE TO FILE%s' %(self.session.name))
+                with open(self.session.name, 'a') as f:
+                    f.write(packet.payload)
                     #log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
-            packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
-
+            packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
+        '''
 
 
 
 class AppProxyFactory(Factory):
-    def __init__(self, session):
-        self.session = session
+    def __init__(self, sessionList):
+        self.sessionList = sessionList
         
     def buildProtocol(self, addr):
-        return AppProxy(self.session)
+        return AppProxy(self.sessionList)
 
 
 class AppProxy(Protocol):
-    def __init__(self, session):
+    def __init__(self, sessionList):
         #self.sessionList = sessionList
-        self.session = session
-        self.buf = ''
+        self.sessionList = sessionList
+        self.serverBuf = dict()
 
     def connectionLost(self, reason):
-        log.msg('connection Lost with: ' + str(self.session.appTransports[-1]))
         log.msg('reason: ', str(reason))
-        sesf.session.appTransports.pop()
-        for app in self.session.appTransports:
-            log.msg('connected app: ' + str(app))
    
     def connectionMade(self):
-        self.session.appTransports.append(self.transport)
-        for app in self.session.appTransports:
-            log.msg('connected app: ' + str(app))
+        if self.sessionList.isEmpty():
+            self.transport.write('No camera on line')
+            self.transport.loseConnection()
+
+    def processPacket(self, packet, appPort):
+        if isinstance(packet, HelloPacket):
+            appId, cameraId = packet.payload.split()
+            self.connectCamera(appId, cameraId, appPort)
+            appPort.write(IpcPacket.CONNECTED)
+        elif isinstance(packet, GetListCmdPacket):
+            cameraPort = self.sessionList.getSessionByAppPort(appPort).cameraPort
+            cameraPort.write(str(packet))
+
+
+    def connectCamera(self, appId, cameraId, appPort):
+        if not self.sessionList.getSessionByAppPort(appPort):
+            self.sessionList.getSessionByCamId(cameraId).addAppTransport(appId, self.transport)
+            log.msg(vars(self.sessionList.getSessionByCamId(cameraId)))
+        else:
+            raise Exception('App already exists in session')
+
 
     def dataReceived(self, data):
-        self.session.cameraTransport.write(data)
-        self.buf += data
-        packet, self.buf = getOnePacketFromBuf(self.buf)
+        print '======== server received data: %s =============' %(data[12:],)
+        if not self.serverBuf.has_key(str(self.transport)):
+            self.serverBuf[str(self.transport)] = ''
+        self.serverBuf[str(self.transport)] += data
+        packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
+        if not packet:
+            return 
+        self.processPacket(packet, self.transport)
+
+
+
+        '''
+        
         while packet:
-			if packet.action == '\x01' and (packet.cmd == '\x01' or packet.cmd == '\x02'):
-				with open('./AppPacketRequest.log', 'w') as f:
-					f.write(str(packet))
-				if packet.cmd == '\x02':
-					self.session.name = packet.payload[:packet.payload.find('\x00')]
-					log.msg('APP REQUEST FILE %s\t' %(self.session.name))
-			packet, self.buf = getOnePacketFromBuf(self.buf)
+            print packet.payload
+            if isinstance(packet, HelloPacket):
+                appId, cameraId = packet.payload.split()
+                if not self.sessionList.has_key(cameraId):
+                    raise Exception('No camera connected')
+                self.sessionList[cameraId].setAppTransport(appId, self.transport)
+                log.msg('======== CmaeraId: %s, online app %s ==============' %(cameraId, str(self.sessionList[cameraId].appPorts)))
+            elif packet.action == '\x01' and (packet.cmd == '\x01' or packet.cmd == '\x02'):
+                with open('./AppPacketRequest.log', 'w') as f:
+                    f.write(str(packet))
+            elif packet.cmd == '\x02':
+                self.session.name = packet.payload[:packet.payload.find('\x00')]
+                log.msg('APP REQUEST FILE %s\t' %(self.session.name))
+            packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
+        '''
 
 
 class IpcServerFactory(Factory):
-    def __init__(self, session):
-        self.protocol = IpcServer(session)
+    def __init__(self, sessionList):
+        self.protocol = IpcServer(sessionList)
 
     def buildProtocol(self, addr):
         return self.protocol
@@ -164,6 +195,6 @@ class MainPage(Resource):
 
         
 '''
-SESSION = Session()
-ipcServerFactory = IpcServerFactory(SESSION)
-appProxyFactory = AppProxyFactory(SESSION)
+SESSIONLIST = SessionList()
+ipcServerFactory = IpcServerFactory(SESSIONLIST)
+appProxyFactory = AppProxyFactory(SESSIONLIST)

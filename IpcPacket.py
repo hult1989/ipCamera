@@ -14,6 +14,7 @@ class IllLegalPacket(Exception):
 
 #############################################
 class IpcPacket(object):
+    CONNECTED = 'camera connected'
     ERROR = '\x01'
     OK = '\x00'
     MSGHEAD = '\x55\xaa'
@@ -100,6 +101,12 @@ class VideoStreamingPacket(IpcPacket):
         self.action = '\x02'
         self.cmd = '\x03'
 
+class HelloPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x00'
+        self.cmd = '\x00'
+
 
 ################################################################
 
@@ -150,12 +157,14 @@ def generateFileListPayload(namelist):
 
 def getPacketFromFactory(strMsg):
     packet = IpcPacket(strMsg)
-    if packet.action == '\x01':
+    if (packet.action =='\x00') and (packet.cmd == '\x00'):
+        return HelloPacket(str(packet))
+    elif packet.action == '\x01':
         if packet.cmd == '\x01':
             return GetListCmdPacket(str(packet))
         if packet.cmd == '\x02':
             return GetFileCmdPacket(str(packet))
-    if packet.action == '\x02':
+    elif packet.action == '\x02':
         if packet.cmd == '\x01':
             return FileListPacket(str(packet))
         if packet.cmd == '\x02':

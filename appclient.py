@@ -26,27 +26,46 @@ class AppClient(Protocol):
         self.fileSize = None
 
     def connectionMade(self):
-        self.transport.write(str(GetListCmdPacket(addHeader('', 0))))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader('2046 alice', 10))))
+        self.transport.write(str(helloPacket))
+        '''
         self.REQUEST_LIST = True
+        '''
+
+    def ProcessPacket(packet, cameraPort):
+        if isinstance(packet, FilePacket):
+            pass
+        elif isinstance(packet, FileListPacket):
+            payload, self.buf = getPayloadFromBuf(self.buf)
+            if not payload:
+                #print 'One File not finished'
+                return
+            print '=============== name list got ================'
+            for name in getFileListFromPayload(payload):
+                print name
+
 
     def checkProcess(self):
         print '=============== receievd %d B ============' %(len(self.buf) )
 
     def dataReceived(self, data):
         NamePayload = lambda name: addHeader(name + '\x00' * (32-len(name)), 32)
-        #print '==================  RECEIVED DATA LENGTH  %d  =====================' %(len(data,))
+
+        print '====== received: %s ======' %(data,)
+        if data == IpcPacket.CONNECTED:
+            print 'send filelist request'
+            self.transport.write(str(GetListCmdPacket(addHeader('', 0))))
+            return
+        self.buf += data
+        packet, self.buf = getOnePacketFromBuf(self.buf)
+        if packet:
+            self.ProcessPacket(packet, self.transport)
+        '''
         self.checkProcess()
         if self.REQUEST_LIST:
             self.buf += data
-            payload, self.buf = getPayloadFromBuf(self.buf)
-            if not payload:
-                #print 'One File not finished'
-                return
-            print '=============== File finished ================'
-            for name in getFileListFromPayload(payload):
-                print name
-                self.nameList.append(name)
-            self.name = '011.BMP'
+                            self.nameList.append(name)
+            self.name = 'snap.jpg'
             #self.name = self.nameList[-1]
             packet = GetFileCmdPacket(str(IpcPacket(NamePayload(self.name))))
             self.transport.write(str(packet))
@@ -71,7 +90,7 @@ class AppClient(Protocol):
                     f.write(self.fileBuf)
                     self.fileBuf = ''
                     self.fileSize = None
-            
+        ''' 
 
 class AppClientFactory(ClientFactory):
     protocol = AppClient
@@ -92,8 +111,8 @@ class AppClientFactory(ClientFactory):
 
 
 def main(reactor):
-    #domain = 'localhost'
-    domain = 'huahai'
+    domain = 'localhost'
+    #domain = 'huahai'
     factory = AppClientFactory()
     reactor.connectTCP(domain, 8082, factory)
     return factory.done
