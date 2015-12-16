@@ -2,3 +2,5 @@ audio
 video
 *.mp3
 *.pyc
+*.log
+appCache

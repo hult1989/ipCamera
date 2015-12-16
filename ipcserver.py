@@ -17,6 +17,8 @@ class Session:
         self.appTransports = list()
         self.pendingDefer = list()
         self.buf = ''
+        self.name = ''
+
     
     def addAppTransport(self, transport):
         self.appTransports.append(transport)
@@ -30,7 +32,6 @@ class IpcServer(Protocol):
     def __init__(self, session):
         #self.sessionList = sessionList
         self.session = session
-        self.name = ''
         self.timestamp = 0
         self.totalSize = 0
 
@@ -69,13 +70,13 @@ class IpcServer(Protocol):
         packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
         while packet:
             if packet.cmd == '\x01': 
-                with open('./namelist.log', 'a') as f:
-                    for name in packet.getFileListFromPacket():
-                        self.name = name
-                        f.write(self.name)
+                with open('./namelist.log', 'w') as f:
+					for name in getFileListFromPayload(packet.payload):
+						f.write(name + '\n')
             if packet.cmd == '\x02':
-                with open(self.name, 'a') as f:
-                    f.write(packet.payload)
+				log.msg('WRITE TO FILE%s' %(self.session.name))
+				with open(self.session.name, 'a') as f:
+					f.write(packet.payload)
                     #log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
             packet, self.session.buf = getOnePacketFromBuf(self.session.buf)
 
@@ -114,8 +115,11 @@ class AppProxy(Protocol):
         packet, self.buf = getOnePacketFromBuf(self.buf)
         while packet:
 			if packet.action == '\x01' and (packet.cmd == '\x01' or packet.cmd == '\x02'):
-				with open('./AppPacketRequest.log', 'a') as f:
+				with open('./AppPacketRequest.log', 'w') as f:
 					f.write(str(packet))
+				if packet.cmd == '\x02':
+					self.session.name = packet.payload[:packet.payload.find('\x00')]
+					log.msg('APP REQUEST FILE %s\t' %(self.session.name))
 			packet, self.buf = getOnePacketFromBuf(self.buf)
 
 

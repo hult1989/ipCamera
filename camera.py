@@ -41,7 +41,7 @@ def readFileToDictBuf(path):
 class Camera(Protocol):
     def __init__(self):
         self.buf = ''
-        self.fileBuf = readFileToDictBuf('./audio')
+        self.fileBuf = readFileToDictBuf('audio')
 
     def connectionMade(self):
         self.transport.write('NONESENSE HEADER')
@@ -50,7 +50,7 @@ class Camera(Protocol):
         self.buf += data
         packet, self.buf = getOnePacketFromBuf(self.buf)
         if isinstance(packet, GetListCmdPacket):
-            payload = generateFileListPayload(getFileList('./audio'))
+            payload = generateFileListPayload(getFileList('audio'))
             print 'response with file list'
             for packetStr in buffer2packets(payload):
                 packetStr = str(FileListPacket(packetStr))

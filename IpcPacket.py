@@ -115,8 +115,8 @@ def generateFileSlice(buf):
     '''cut file into several pieces, each piece less than 1KB, yield file file pieces'''
     generated = 0
     while generated < len(buf):
-        pieceSize = 32 * random.randint(24, 32)
-        #pieceSize = 4 * 1024
+        #pieceSize = 32 * random.randint(24, 32)
+        pieceSize = 1 * 1024
         yield buf[generated: generated + pieceSize]
         generated += pieceSize
 
@@ -161,6 +161,30 @@ def getPacketFromFactory(strMsg):
         if packet.cmd == '\x02':
             return FilePacket(str(packet))
 
+def getPayloadFromBuf(buf):
+    packet, left = getOnePacketFromBuf(buf)
+    if packet is None:
+        return None, buf
+    totalSize = struct.unpack('!I', str(packet)[4:8])[0]
+    #print '============ FIRST PAYLOAD SIZE:\t%d ==========' %(totalSize)
+    payload = ''
+    payload += packet.payload
+    while len(payload) < totalSize:
+        packet, left = getOnePacketFromBuf(left)
+        if not packet:
+            break
+        payload += packet.payload
+    if len(payload) < totalSize:
+        #print '===== unfinished payload, current size %d' %(len(payload))
+        return None, buf
+    return payload, left
+
+
+def getFileListFromPayload(payload):
+    while len(payload) > 0:
+        yield payload[:payload.find('\x00')]
+        payload = payload[32:]
+
 
 
 
@@ -188,27 +212,21 @@ if __name__ == '__main__':
         i += 1
     #print 'TOTAL PAYLOAD SIZE OF NANE LIST IS : ', len(payload)
     '''
-    packet = IpcPacket(addHeader('', 0))
-    packet = FileListPacket(packet)
-    print isinstance(packet, FilePacket)
-    print isinstance(packet, FileListPacket)
-    
 
 
-    '''
     with open('./testMsg', 'r') as f:
         strMsg = f.read()
-    strMsg = 'fafadsf' + strMsg + 'tail'
-    filePacket, strMsg = getOnePacketFromBuf(strMsg)
-    while filePacket is not None:
-        print '=============NEW PACKET=================='
-        for name in filePacket.getFileListFromPacket():
+    strMsg = 'fafadsfasdfhalksdfsalkdhfasjkldfhsa;flj' + strMsg + 'tail' + strMsg + 'alsd'
+    payload, strMsg = getPayloadFromBuf(strMsg)
+    while payload:
+        for name in getFileListFromPayload(payload):
             print name
-        filePacket, strMsg = getOnePacketFromBuf(strMsg)
-    print '============LEFT TAIL=================='
-    print strMsg
-    '''
+        print '================== ALL PAYLOAD FINISHED =======================' 
+        payload, strMsg = getPayloadFromBuf(strMsg)
 
+    print '============LEFT TAIL=================='
+    print 'TAIL LEFT: \t', strMsg
+    print 'LEFT SIZE: \t', len(strMsg)
 
         
 
