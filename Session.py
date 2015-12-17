@@ -1,5 +1,3 @@
-from enum import Enum
-
 
 class Session(object):
     RQSTLIST = 1
@@ -12,6 +10,7 @@ class Session(object):
             self.state = state
             self.unfinished = None
             self.time = None
+            self.filename = None
 
         def getActiveApp(self):
             return self.activeAppPort

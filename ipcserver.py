@@ -72,7 +72,7 @@ class IpcServer(Protocol):
 
 
     def cacheFileList(self, packet, conversion):
-        with open('./namelist.log', 'w') as f:
+        with open('./namelist.log', 'a') as f:
             if conversion.unfinished is None:
                 conversion.unfinished = packet.totalMsgSize
             conversion.unfinished -= packet.payloadSize
@@ -87,6 +87,8 @@ class IpcServer(Protocol):
         if conversion.unfinished is None:
             conversion.unfinished = packet.totalMsgSize
         conversion.unfinished -= packet.payloadSize
+        with open('./saved/' + conversion.filename, 'a') as f:
+            f.write(packet.payload)
         #print '=========MSG LEFT %d ===========' %(conversion.unfinished)
         if conversion.unfinished == 0:
             conversion.unfinished = None
@@ -153,8 +155,10 @@ class AppProxy(Protocol):
             cameraPort = session.cameraPort
             if session.conversion is None:
                 print '======= Conversion OPEN ========'
-                state = Session.RQSTLIST if isinstance(packet, GetListCmdPacket) else Session.RQSTFILE
                 session.conversion = Session.Conversion(appPort, cameraPort, Session.RQSTLIST)
+                if isinstance(packet, GetFileCmdPacket): 
+                    session.conversion.state = Session.RQSTFILE
+                    session.conversion.filename = packet.payload[:packet.payload.find('\x00')]
                 cameraPort.write(str(packet))
             else:
                 appPort.write('Camera busy, wait a minute')

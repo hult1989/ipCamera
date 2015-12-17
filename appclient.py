@@ -21,11 +21,12 @@ def calc():
         if len(size) == 0:
             size.append(fileSize)
             timestamp.append(time.time())
-        elif time.time() - timestamp[0] > 0.1:
+        elif time.time() - timestamp[0] > 1:
+            print '==== Total Size %s ====' %(fileSize)
             result = (fileSize - size[0]) / float(time.time() - timestamp[0])
             size[0] = fileSize
             timestamp[0] = time.time()
-            print 'RATE IS: ', result / 1024 / 1024 * 10, ' MB/s'
+            print 'RATE IS: ', result / 1024 / 1024 , ' MB/s'
     return calcRate
 
 

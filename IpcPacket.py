@@ -117,7 +117,8 @@ def getFileList(path):
     '''return a list with file names'''
     result = []
     for name in os.listdir(path):
-        result.append('/'.join((path, name)))
+        result.append(name)
+        #result.append('/'.join((path, name)))
     return result
 
 

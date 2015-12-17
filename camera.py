@@ -19,7 +19,7 @@ def socketSendInPartial(sock, message):
 def readFileToDictBuf(path):
     dictBuf = dict()
     for name in getFileList(path):
-        with open(name) as f:
+        with open('/'.join((path, name))) as f:
             dictBuf[name] = f.read()
             print name, ' ', len(dictBuf[name])
     return dictBuf
