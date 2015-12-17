@@ -1,5 +1,6 @@
 audio
 video
+saved
 *.mp3
 *.pyc
 *.log

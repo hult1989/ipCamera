@@ -16,19 +16,6 @@ def socketSendInPartial(sock, message):
         print 'socket send %d bytes' %(sent,)
         alreadySent += sent
 
-
-'''
-with open('./testMsg', 'r') as f:
-    message = f.read()
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = (domain, 8081)
-sock.connect(server_address)
-socketSendInPartial(sock, message)
-sock.close()
-
-'''
-
 def readFileToDictBuf(path):
     dictBuf = dict()
     for name in getFileList(path):
@@ -42,6 +29,8 @@ class Camera(Protocol):
     def __init__(self):
         self.buf = ''
         self.fileBuf = readFileToDictBuf('audio')
+        for name in self.fileBuf:
+            print 'File name: %s , Size: %s' %(name, len(self.fileBuf[name]))
 
     def connectionMade(self):
         helloPacket = HelloPacket(str(IpcPacket(addHeader('alice', 5))))
@@ -55,6 +44,14 @@ class Camera(Protocol):
             for packetStr in buffer2packets(payload):
                 packetStr = str(FileListPacket(packetStr))
                 self.transport.write(packetStr)
+        elif isinstance(packet, GetFileCmdPacket):
+            name = packet.payload[:packet.payload.find('\x00')]
+            print name, ' response with file request, len: ', len(self.fileBuf[name])
+            for packetPayload in buffer2packets(self.fileBuf[name]):
+                packetPayload = str(FilePacket(packetPayload))
+                self.transport.write(packetPayload)
+            print 'all file sended!'
+
 
 
     def dataReceived(self,data):

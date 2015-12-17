@@ -9,9 +9,24 @@ from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.protocols.basic import LineReceiver
 import os.path
-import time
+import time, random
 
 from IpcPacket import *
+
+
+def calc():
+    timestamp = []
+    size = []
+    def calcRate(fileSize):
+        if len(size) == 0:
+            size.append(fileSize)
+            timestamp.append(time.time())
+        elif time.time() - timestamp[0] > 0.1:
+            result = (fileSize - size[0]) / float(time.time() - timestamp[0])
+            size[0] = fileSize
+            timestamp[0] = time.time()
+            print 'RATE IS: ', result / 1024 / 1024 * 10, ' MB/s'
+    return calcRate
 
 
 class AppClient(Protocol):
@@ -24,58 +39,57 @@ class AppClient(Protocol):
         self.REQUEST_LIST = False
         self.fileBuf = ''
         self.fileSize = None
+        self.calcRate = calc()
 
     def connectionMade(self):
-        helloPacket = HelloPacket(str(IpcPacket(addHeader('2046 alice', 10))))
+        appId = str(random.randint(1000, 9999))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader(appId + ' alice', 10))))
         self.transport.write(str(helloPacket))
         '''
         self.REQUEST_LIST = True
         '''
-
-    def ProcessPacket(packet, cameraPort):
+    def processPacket(self, packet, cameraPort):
         if isinstance(packet, FilePacket):
-            pass
+            while packet:
+                if self.fileSize is None:
+                    self.fileSize = 0
+                self.fileSize += packet.payloadSize
+                #print 'ACCEPTED: ', self.fileSize
+                self.calcRate(self.fileSize)
+                packet, self.buf = getOnePacketFromBuf(self.buf)
+
         elif isinstance(packet, FileListPacket):
-            payload, self.buf = getPayloadFromBuf(self.buf)
-            if not payload:
-                #print 'One File not finished'
-                return
-            print '=============== name list got ================'
-            for name in getFileListFromPayload(payload):
-                print name
+            print '=========== name list  ============'
+            while packet:
+                for name in getFileListFromPayload(packet.payload):
+                    self.nameList.append(name)
+                    print name
+                packet, self.buf = getOnePacketFromBuf(self.buf)
+            print '=========== All name list ============'
+            self.name = self.nameList[-1]
+            packet = GetFileCmdPacket(str(IpcPacket(NamePayload(self.name))))
+            cameraPort.write(str(packet))
+            print '===send file request name: %s===' %(self.name)
 
 
     def checkProcess(self):
         print '=============== receievd %d B ============' %(len(self.buf) )
 
     def dataReceived(self, data):
-        NamePayload = lambda name: addHeader(name + '\x00' * (32-len(name)), 32)
-
-        print '====== received: %s ======' %(data,)
-        if data == IpcPacket.CONNECTED:
+        #print '====== received: %s ======' %(data,)
+        self.buf += data
+        #print '=== in app buf: %s ===' %(self.buf)
+        packet, self.buf = getOnePacketFromBuf(self.buf)
+        if packet:
+            self.processPacket(packet, self.transport)
+        elif data == IpcPacket.CONNECTED:
             print 'send filelist request'
             self.transport.write(str(GetListCmdPacket(addHeader('', 0))))
             return
-        self.buf += data
-        packet, self.buf = getOnePacketFromBuf(self.buf)
-        if packet:
-            self.ProcessPacket(packet, self.transport)
+        else:
+            print data
         '''
         self.checkProcess()
-        if self.REQUEST_LIST:
-            self.buf += data
-                            self.nameList.append(name)
-            self.name = 'snap.jpg'
-            #self.name = self.nameList[-1]
-            packet = GetFileCmdPacket(str(IpcPacket(NamePayload(self.name))))
-            self.transport.write(str(packet))
-            print '===send file request!==='
-            print str(self.name)
-            self.REQUEST_FILE = True
-            self.REQUEST_LIST = False
-        elif self.REQUEST_FILE:
-            self.buf += data
-            packet, self.buf = getOnePacketFromBuf(self.buf)
             while packet:
                 if not self.fileSize:
                     self.fileSize = packet.totalMsgSize

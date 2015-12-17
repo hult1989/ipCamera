@@ -10,6 +10,8 @@ class Session(object):
         def __init__(self, appPort, cameraPort, state):
             self.activeAppPort = appPort
             self.state = state
+            self.unfinished = None
+            self.time = None
 
         def getActiveApp(self):
             return self.activeAppPort

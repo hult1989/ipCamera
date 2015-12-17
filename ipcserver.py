@@ -12,13 +12,11 @@ from Session import *
 
 
 
-
 class IpcServer(Protocol):
     def __init__(self, sessionList):
         self.sessionList = sessionList
-        self.timestamp = 0
-        self.totalSize = 0
         self.serverBuf = dict()
+        self.sent = None
 
     def cameraConnected(self, cameraId, cameraPort):
         self.sessionList.addSession(cameraId, Session(cameraId, cameraPort))
@@ -38,9 +36,10 @@ class IpcServer(Protocol):
         log.msg('CLIENT: ' + str(self.transport.client))
         log.msg('SOCKET: ' + str(self.transport.socket))
         '''
-    def calcRate(self, data):
+    def calcRate(self, data, conversion):
         now = time.time()
-        if self.timestamp == 0 and self.totalSize == 0:
+        if conversion.time is None:
+            conversion.time = now
             self.timestamp = now
             self.totalSize = len(data)
         else:
@@ -50,28 +49,68 @@ class IpcServer(Protocol):
                 self.timestamp = 0
                 self.totalSize = 0
 
+    def processPacket(self, packet, cameraPort):
+        if isinstance(packet, HelloPacket):
+            self.cameraConnected(packet.payload, cameraPort)
+        elif isinstance(packet, FileListPacket) or isinstance(packet, FilePacket):
+            session = self.sessionList.getSessionByCamPort(cameraPort)
+            while packet:
+                session.getActiveApp().write(str(packet))
+                if isinstance(packet, FileListPacket):
+                    if self.cacheFileList(packet, session.conversion):
+                        print '======== LIST ACCEPTED========='
+                        session.conversion = None
+                        self.serverBuf[str(cameraPort)] = ''
+                        print '======= Conversion CLOSED ========'
+                elif isinstance(packet, FilePacket):
+                    if self.cacheFile(packet, session.conversion):
+                        print '======== FILE ACCEPTED========='
+                        session.conversion = None
+                        self.serverBuf[str(cameraPort)] = ''
+                        print '======= Conversion CLOSED ========'
+                packet, self.serverBuf[str(cameraPort)] = getOnePacketFromBuf(self.serverBuf[str(cameraPort)])
+
+
+    def cacheFileList(self, packet, conversion):
+        with open('./namelist.log', 'w') as f:
+            if conversion.unfinished is None:
+                conversion.unfinished = packet.totalMsgSize
+            conversion.unfinished -= packet.payloadSize
+            print '=========MSG LEFT %d ===========' %(conversion.unfinished)
+            for name in getFileListFromPayload(packet.payload):
+                f.write(name + '\n')
+            if conversion.unfinished == 0:
+                conversion.unfinished = None
+            return conversion.unfinished is None
+
+    def cacheFile(self, packet, conversion):
+        if conversion.unfinished is None:
+            conversion.unfinished = packet.totalMsgSize
+        conversion.unfinished -= packet.payloadSize
+        #print '=========MSG LEFT %d ===========' %(conversion.unfinished)
+        if conversion.unfinished == 0:
+            conversion.unfinished = None
+        return conversion.unfinished is None
 
     def dataReceived(self, data):
+        if not self.serverBuf.has_key(str(self.transport)):
+            self.serverBuf[str(self.transport)] = ''
+        self.serverBuf[str(self.transport)] += data
+        packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
+        if not packet:
+            return 
+        self.processPacket(packet, self.transport)
 
-        packet, buf = getOnePacketFromBuf(data)
-        self.cameraConnected(packet.payload, self.transport)
         
         '''
-        session = self.sessionList.getSessionByCamPort(self.transport)
-        log.msg( session.cameraId + ' send message, lenth: ' + str(len(data)))
-        session.getActiveApp.write(data)
 
         if not self.serverBuf.has_key(str(self.transport)):
             self.serverBuf[str(self.transport)] = ''
         self.serverBuf[str(self.transport)] += data
         packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
-        while packet:
             if isinstance(packet, HelloPacket):
                 self.cameraConnected(packet.payload, self.transport)
             elif packet.cmd == '\x01':  
-                with open('./namelist.log', 'w') as f:
-					for name in getFileListFromPayload(packet.payload):
-						f.write(name + '\n')
             elif packet.cmd == '\x02':
                 log.msg('WRITE TO FILE%s' %(self.session.name))
                 with open(self.session.name, 'a') as f:
@@ -109,9 +148,17 @@ class AppProxy(Protocol):
             appId, cameraId = packet.payload.split()
             self.connectCamera(appId, cameraId, appPort)
             appPort.write(IpcPacket.CONNECTED)
-        elif isinstance(packet, GetListCmdPacket):
-            cameraPort = self.sessionList.getSessionByAppPort(appPort).cameraPort
-            cameraPort.write(str(packet))
+        elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket):
+            session = self.sessionList.getSessionByAppPort(appPort)
+            cameraPort = session.cameraPort
+            if session.conversion is None:
+                print '======= Conversion OPEN ========'
+                state = Session.RQSTLIST if isinstance(packet, GetListCmdPacket) else Session.RQSTFILE
+                session.conversion = Session.Conversion(appPort, cameraPort, Session.RQSTLIST)
+                cameraPort.write(str(packet))
+            else:
+                appPort.write('Camera busy, wait a minute')
+
 
 
     def connectCamera(self, appId, cameraId, appPort):
@@ -133,25 +180,6 @@ class AppProxy(Protocol):
         self.processPacket(packet, self.transport)
 
 
-
-        '''
-        
-        while packet:
-            print packet.payload
-            if isinstance(packet, HelloPacket):
-                appId, cameraId = packet.payload.split()
-                if not self.sessionList.has_key(cameraId):
-                    raise Exception('No camera connected')
-                self.sessionList[cameraId].setAppTransport(appId, self.transport)
-                log.msg('======== CmaeraId: %s, online app %s ==============' %(cameraId, str(self.sessionList[cameraId].appPorts)))
-            elif packet.action == '\x01' and (packet.cmd == '\x01' or packet.cmd == '\x02'):
-                with open('./AppPacketRequest.log', 'w') as f:
-                    f.write(str(packet))
-            elif packet.cmd == '\x02':
-                self.session.name = packet.payload[:packet.payload.find('\x00')]
-                log.msg('APP REQUEST FILE %s\t' %(self.session.name))
-            packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
-        '''
 
 
 class IpcServerFactory(Factory):

@@ -105,10 +105,13 @@ class HelloPacket(IpcPacket):
     def __init__(self, packet):
         IpcPacket.__init__(self, str(packet))
         self.action = '\x00'
-        self.cmd = '\x00'
+        #self.cmd = '\x00'
 
 
 ################################################################
+
+
+NamePayload = lambda name: addHeader(name + '\x00' * (32-len(name)), 32)
 
 def getFileList(path):
     '''return a list with file names'''
