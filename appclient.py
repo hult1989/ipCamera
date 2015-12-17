@@ -43,8 +43,8 @@ class AppClient(Protocol):
         self.calcRate = calc()
 
     def connectionMade(self):
-        appId = str(random.randint(1000, 9999))
-        helloPacket = HelloPacket(str(IpcPacket(addHeader(appId + ' alice', 10))))
+        appId = str(random.randint(100000, 999999))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader(appId + '_890924', 13))))
         self.transport.write(str(helloPacket))
         '''
         self.REQUEST_LIST = True

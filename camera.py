@@ -33,8 +33,9 @@ class Camera(Protocol):
             print 'File name: %s , Size: %s' %(name, len(self.fileBuf[name]))
 
     def connectionMade(self):
-        helloPacket = HelloPacket(str(IpcPacket(addHeader('alice', 5))))
-        print 'Send data:  ', str(helloPacket)
+        print 'CONNECTION MADE!!!!!!!!!!!!==========='
+        helloPacket = HelloPacket(str(IpcPacket(addHeader('Camera_890924', 13))))
+        print 'Send data:  ', str(helloPacket)[12:]
         self.transport.write(str(helloPacket))
 
     def processPacket(self, packet):

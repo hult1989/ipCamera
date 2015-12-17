@@ -51,7 +51,7 @@ class IpcServer(Protocol):
 
     def processPacket(self, packet, cameraPort):
         if isinstance(packet, HelloPacket):
-            self.cameraConnected(packet.payload, cameraPort)
+            self.cameraConnected(packet.payload[7:], cameraPort)
         elif isinstance(packet, FileListPacket) or isinstance(packet, FilePacket):
             session = self.sessionList.getSessionByCamPort(cameraPort)
             while packet:
@@ -100,8 +100,9 @@ class IpcServer(Protocol):
         self.serverBuf[str(self.transport)] += data
         packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
         if not packet:
-            return 
-        self.processPacket(packet, self.transport)
+            print data
+        else:
+            self.processPacket(packet, self.transport)
 
         
         '''
@@ -147,7 +148,8 @@ class AppProxy(Protocol):
 
     def processPacket(self, packet, appPort):
         if isinstance(packet, HelloPacket):
-            appId, cameraId = packet.payload.split()
+            log.msg('hello packet id %s' %(packet.payload))
+            appId, cameraId = packet.payload[:7], packet.payload[7:]
             self.connectCamera(appId, cameraId, appPort)
             appPort.write(IpcPacket.CONNECTED)
         elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket):

@@ -105,7 +105,7 @@ class HelloPacket(IpcPacket):
     def __init__(self, packet):
         IpcPacket.__init__(self, str(packet))
         self.action = '\x00'
-        #self.cmd = '\x00'
+        self.cmd = '\x21'
 
 
 ################################################################
@@ -161,7 +161,7 @@ def generateFileListPayload(namelist):
 
 def getPacketFromFactory(strMsg):
     packet = IpcPacket(strMsg)
-    if (packet.action =='\x00') and (packet.cmd == '\x00'):
+    if (packet.action =='\x00') and (packet.cmd == '\x21'):
         return HelloPacket(str(packet))
     elif packet.action == '\x01':
         if packet.cmd == '\x01':
