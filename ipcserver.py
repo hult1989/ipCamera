@@ -52,7 +52,7 @@ class IpcServer(Protocol):
     def processPacket(self, packet, cameraPort):
         if isinstance(packet, HelloPacket):
             self.cameraConnected(packet.payload[7:], cameraPort)
-        elif isinstance(packet, FileListPacket) or isinstance(packet, FilePacket):
+        elif isinstance(packet, FileListPacket) or isinstance(packet, FilePacket) or isinstance(packet, VideoStreamingPacket):
             session = self.sessionList.getSessionByCamPort(cameraPort)
             while packet:
                 session.getActiveApp().write(str(packet))
@@ -68,6 +68,8 @@ class IpcServer(Protocol):
                         session.conversion = None
                         self.serverBuf[str(cameraPort)] = ''
                         print '======= Conversion CLOSED ========'
+                elif isinstance(packet, VideoStreamingPacket):
+                    print '========  streaming ========='
                 packet, self.serverBuf[str(cameraPort)] = getOnePacketFromBuf(self.serverBuf[str(cameraPort)])
 
 
@@ -142,17 +144,15 @@ class AppProxy(Protocol):
         log.msg('reason: ', str(reason))
    
     def connectionMade(self):
-        if self.sessionList.isEmpty():
-            self.transport.write('No camera on line')
-            self.transport.loseConnection()
+        self.transport.write('hello, app~\n')
+        #self.transport.loseConnection()
 
     def processPacket(self, packet, appPort):
         if isinstance(packet, HelloPacket):
             log.msg('hello packet id %s' %(packet.payload))
             appId, cameraId = packet.payload[:7], packet.payload[7:]
             self.connectCamera(appId, cameraId, appPort)
-            appPort.write(IpcPacket.CONNECTED)
-        elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket):
+        elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket) or isinstance(packet, GetStreamingPacket):
             session = self.sessionList.getSessionByAppPort(appPort)
             cameraPort = session.cameraPort
             if session.conversion is None:
@@ -161,18 +161,27 @@ class AppProxy(Protocol):
                 if isinstance(packet, GetFileCmdPacket): 
                     session.conversion.state = Session.RQSTFILE
                     session.conversion.filename = packet.payload[:packet.payload.find('\x00')]
+
+                elif isinstance(packet, GetFileCmdPacket): 
+                    session.conversion.state = Session.RQSTVIDEO
                 cameraPort.write(str(packet))
             else:
                 appPort.write('Camera busy, wait a minute')
 
 
 
+
     def connectCamera(self, appId, cameraId, appPort):
-        if not self.sessionList.getSessionByAppPort(appPort):
-            self.sessionList.getSessionByCamId(cameraId).addAppTransport(appId, self.transport)
-            log.msg(vars(self.sessionList.getSessionByCamId(cameraId)))
+        if not self.sessionList.getSessionByCamId(cameraId):
+            appPort.write('no camera on line')
+            appPort.loseConnection()
+        #elif not self.sessionList.getSessionByAppPort(appPort):
         else:
-            raise Exception('App already exists in session')
+            appPort.write(IpcPacket.CONNECTED)
+            self.sessionList.getSessionByCamId(cameraId).addAppTransport(appId, appPort)
+            log.msg('=== ONLINE SESSION: %s ===' %(vars(self.sessionList.getSessionByCamId(cameraId))))
+        #else:
+            #raise Exception('App already exists in session')
 
 
     def dataReceived(self, data):

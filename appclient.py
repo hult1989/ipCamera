@@ -50,7 +50,7 @@ class AppClient(Protocol):
         self.REQUEST_LIST = True
         '''
     def processPacket(self, packet, cameraPort):
-        if isinstance(packet, FilePacket):
+        if isinstance(packet, FilePacket) or isinstance(packet, VideoStreamingPacket):
             while packet:
                 if self.fileSize is None:
                     self.fileSize = 0
@@ -60,6 +60,10 @@ class AppClient(Protocol):
                 packet, self.buf = getOnePacketFromBuf(self.buf)
 
         elif isinstance(packet, FileListPacket):
+            print 'video streaming request...'
+            packet = GetStreamingPacket(str(IpcPacket(addHeader('', 0))))
+            cameraPort.write(str(packet))
+            '''
             print '=========== name list  ============'
             while packet:
                 for name in getFileListFromPayload(packet.payload):
@@ -71,6 +75,7 @@ class AppClient(Protocol):
             packet = GetFileCmdPacket(str(IpcPacket(NamePayload(self.name))))
             cameraPort.write(str(packet))
             print '===send file request name: %s===' %(self.name)
+            '''
 
 
     def checkProcess(self):
@@ -83,7 +88,7 @@ class AppClient(Protocol):
         packet, self.buf = getOnePacketFromBuf(self.buf)
         if packet:
             self.processPacket(packet, self.transport)
-        elif data == IpcPacket.CONNECTED:
+        elif data.find(IpcPacket.CONNECTED) != -1:
             print 'send filelist request'
             self.transport.write(str(GetListCmdPacket(addHeader('', 0))))
             return

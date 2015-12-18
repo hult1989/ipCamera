@@ -22,13 +22,16 @@ def readFileToDictBuf(path):
         with open('/'.join((path, name))) as f:
             dictBuf[name] = f.read()
             print name, ' ', len(dictBuf[name])
-    return dictBuf
+    with open('./video/mk9.mp4') as f:
+        videoBuf = f.read()
+        print 'video: mk9.mp4, buf size: ', len(videoBuf)
+    return dictBuf, videoBuf
 
 
 class Camera(Protocol):
     def __init__(self):
         self.buf = ''
-        self.fileBuf = readFileToDictBuf('audio')
+        self.fileBuf , self.videoBuf = readFileToDictBuf('audio')
         for name in self.fileBuf:
             print 'File name: %s , Size: %s' %(name, len(self.fileBuf[name]))
 
@@ -52,6 +55,12 @@ class Camera(Protocol):
                 packetPayload = str(FilePacket(packetPayload))
                 self.transport.write(packetPayload)
             print 'all file sended!'
+        elif isinstance(packet, GetStreamingPacket):
+            for packet in buffer2packets(self.videoBuf):
+                print 'Video streaming request accepted, start streaming...'
+                packet = str(VideoStreamingPacket(packet))
+                self.transport.write(packet)
+            print 'Video Streaming Finished!'
 
 
 
@@ -98,5 +107,5 @@ class CameraFactory(ClientFactory):
 
 if __name__ == '__main__':
     from twisted.internet import reactor
-    reactor.connectTCP(domain, 8081, CameraFactory())
+    reactor.connectTCP(domain, 8082, CameraFactory())
     reactor.run()
