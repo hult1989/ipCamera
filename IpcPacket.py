@@ -94,6 +94,11 @@ class GetStreamingPacket(IpcPacket):
         self.action = '\x01'
         self.cmd = '\x03'
 
+class CloseStreamingPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x03'
+        self.cmd = '\x04'
 
 class VideoStreamingPacket(IpcPacket):
     def __init__(self, packet):
@@ -177,6 +182,9 @@ def getPacketFromFactory(strMsg):
             return FilePacket(str(packet))
         elif packet.cmd == '\x03':
             return VideoStreamingPacket(str(packet))
+    elif packet.action == '\x03':
+        if packet.cmd == '\x04':
+            return CloseStreamingPacket(str(packet))
 
 def getPayloadFromBuf(buf):
     packet, left = getOnePacketFromBuf(buf)
@@ -220,6 +228,7 @@ def getOnePacketFromBuf(buf):
 
 
 if __name__ == '__main__':
+
     '''
     print 'ABOVE IS DIRECT READ FROM PAYLOAD==============='
     print 'BELOW IS READ FROM PAYLOAD======================'
@@ -228,7 +237,6 @@ if __name__ == '__main__':
         print payload[i*32: (1+i)*32]
         i += 1
     #print 'TOTAL PAYLOAD SIZE OF NANE LIST IS : ', len(payload)
-    '''
 
 
     with open('./testMsg', 'r') as f:
@@ -245,6 +253,7 @@ if __name__ == '__main__':
     print 'TAIL LEFT: \t', strMsg
     print 'LEFT SIZE: \t', len(strMsg)
 
+    '''
         
 
     
