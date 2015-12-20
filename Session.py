@@ -79,6 +79,9 @@ class SessionList(object):
     def isEmpty(self):
         return len(self.sessions) == 0
 
+    def __len__(self):
+        return len(self.sessions)
+
 
 if __name__ == '__main__':
     sessiona = Session('alice', '192.168.1.1:1080')

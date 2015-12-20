@@ -21,8 +21,11 @@ class IpcServer(Protocol):
     def cameraConnected(self, cameraId, cameraPort):
         self.sessionList.addSession(cameraId, Session(cameraId, cameraPort))
         log.msg('==== camera %s connected=============' %(cameraId))
+        i = 0
         for session in self.sessionList.getAllSession():
-            log.msg('ACTIVE SESSION' + str(vars(session)))
+            log.msg('ACTIVE SESSION: ' + str(i)  +'\t' + str(vars(session)))
+            i += 1
+        log.msg('====================================')
 
 
     def connectionLost(self, reason):
@@ -49,29 +52,47 @@ class IpcServer(Protocol):
                 self.timestamp = 0
                 self.totalSize = 0
 
-    def processPacket(self, packet, cameraPort):
-        if isinstance(packet, HelloPacket):
-            self.cameraConnected(packet.payload[7:], cameraPort)
-        elif isinstance(packet, FileListPacket) or isinstance(packet, FilePacket) or isinstance(packet, VideoStreamingPacket):
-            session = self.sessionList.getSessionByCamPort(cameraPort)
-            while packet:
-                session.getActiveApp().write(str(packet))
-                if isinstance(packet, FileListPacket):
-                    if self.cacheFileList(packet, session.conversion):
-                        print '======== LIST ACCEPTED========='
-                        session.conversion = None
-                        self.serverBuf[str(cameraPort)] = ''
-                        print '======= Conversion CLOSED ========'
-                elif isinstance(packet, FilePacket):
-                    if self.cacheFile(packet, session.conversion):
-                        print '======== FILE ACCEPTED========='
-                        session.conversion = None
-                        self.serverBuf[str(cameraPort)] = ''
-                        print '======= Conversion CLOSED ========'
-                elif isinstance(packet, VideoStreamingPacket):
-                    print '========  streaming ========='
-                packet, self.serverBuf[str(cameraPort)] = getOnePacketFromBuf(self.serverBuf[str(cameraPort)])
+    def processFileListPacket(self, packet, cameraPort):
+        session = self.sessionList.getSessionByCamPort(cameraPort)
+        session.getActiveApp().write(str(packet))
+        if session.conversion.unfinished is None:
+            print '======== first filelist packet  ========'
+            session.conversion.unfinished = packet.totalMsgSize
+        session.conversion.unfinished -= packet.payloadSize
+        #print '======== %d B to be transported ========' %(session.conversion.unfinished)
+        if session.conversion.unfinished == 0:
+            print '======== last filelist packet  ========'
+            session.conversion = None
+            print '======= Conversion CLOSED ========'
 
+    def processFilePacket(self, packet, cameraPort):
+        session = self.sessionList.getSessionByCamPort(cameraPort)
+        session.getActiveApp().write(str(packet))
+        if session.conversion.unfinished is None:
+            print '======== first file packet  ========'
+            session.conversion.unfinished = packet.totalMsgSize
+        session.conversion.unfinished -= packet.payloadSize
+        #print '======== %d B to be transported ========' %(session.conversion.unfinished)
+        if session.conversion.unfinished == 0:
+            print '======== last file packet  ========'
+            session.conversion = None
+            print '======= Conversion CLOSED ========'
+
+    def processStreamingPacket(packet, cameraPort):
+        print '========  streaming ========='
+        session = self.sessionList.getSessionByCamPort(cameraPort)
+        session.getActiveApp().write(str(packet))
+
+    def processPacket(self, packets, cameraPort):
+        for packet in packets:
+            if isinstance(packet, HelloPacket):
+                self.cameraConnected(packet.payload[7:], cameraPort)
+            elif isinstance(packet, FileListPacket):
+                self.processFileListPacket(packet, cameraPort)
+            elif isinstance(packet, FilePacket):
+                self.processFilePacket(packet, cameraPort)
+            elif isinstance(packet, VideoStreamingPacket):
+                self.processStreamingPacket(packet, cameraPort)
 
     def cacheFileList(self, packet, conversion):
         with open('./namelist.log', 'a') as f:
@@ -100,11 +121,11 @@ class IpcServer(Protocol):
         if not self.serverBuf.has_key(str(self.transport)):
             self.serverBuf[str(self.transport)] = ''
         self.serverBuf[str(self.transport)] += data
-        packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
-        if not packet:
+        packets, self.serverBuf[str(self.transport)] = getAllPacketFromBuf(self.serverBuf[str(self.transport)])
+        if not packets:
             print data
         else:
-            self.processPacket(packet, self.transport)
+            self.processPacket(packets, self.transport)
 
         
         '''
@@ -147,26 +168,27 @@ class AppProxy(Protocol):
         self.transport.write('hello, app~\n')
         #self.transport.loseConnection()
 
-    def processPacket(self, packet, appPort):
-        if isinstance(packet, HelloPacket):
-            log.msg('hello packet id %s' %(packet.payload))
-            appId, cameraId = packet.payload[:7], packet.payload[7:]
-            self.connectCamera(appId, cameraId, appPort)
-        elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket) or isinstance(packet, GetStreamingPacket):
-            session = self.sessionList.getSessionByAppPort(appPort)
-            cameraPort = session.cameraPort
-            if session.conversion is None:
-                print '======= Conversion OPEN ========'
-                session.conversion = Session.Conversion(appPort, cameraPort, Session.RQSTLIST)
-                if isinstance(packet, GetFileCmdPacket): 
-                    session.conversion.state = Session.RQSTFILE
-                    session.conversion.filename = packet.payload[:packet.payload.find('\x00')]
+    def processPacket(self, packets, appPort):
+        for packet in packets:
+            if isinstance(packet, HelloPacket):
+                log.msg('hello packet id %s' %(packet.payload))
+                appId, cameraId = packet.payload[:7], packet.payload[7:]
+                self.connectCamera(appId, cameraId, appPort)
+            elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket) or isinstance(packet, GetStreamingPacket):
+                session = self.sessionList.getSessionByAppPort(appPort)
+                cameraPort = session.cameraPort
+                if session.conversion is None:
+                    print '======= Conversion OPEN ========'
+                    session.conversion = Session.Conversion(appPort, cameraPort, Session.RQSTLIST)
+                    if isinstance(packet, GetFileCmdPacket): 
+                        session.conversion.state = Session.RQSTFILE
+                        session.conversion.filename = packet.payload[:packet.payload.find('\x00')]
 
-                elif isinstance(packet, GetFileCmdPacket): 
-                    session.conversion.state = Session.RQSTVIDEO
-                cameraPort.write(str(packet))
-            else:
-                appPort.write('Camera busy, wait a minute')
+                    elif isinstance(packet, GetFileCmdPacket): 
+                        session.conversion.state = Session.RQSTVIDEO
+                    cameraPort.write(str(packet))
+                else:
+                    appPort.write('Camera busy, wait a minute')
 
 
 
@@ -185,14 +207,14 @@ class AppProxy(Protocol):
 
 
     def dataReceived(self, data):
-        print '======== server received data: %s =============' %(data[12:],)
         if not self.serverBuf.has_key(str(self.transport)):
             self.serverBuf[str(self.transport)] = ''
         self.serverBuf[str(self.transport)] += data
-        packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
-        if not packet:
-            return 
-        self.processPacket(packet, self.transport)
+        packets, self.serverBuf[str(self.transport)] = getAllPacketFromBuf(self.serverBuf[str(self.transport)])
+        if packets:
+            self.processPacket(packets, self.transport)
+        else:
+            print '======== server received data: %s      ========' %(data,)
 
 
 

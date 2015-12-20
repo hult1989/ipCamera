@@ -22,7 +22,7 @@ def readFileToDictBuf(path):
         with open('/'.join((path, name))) as f:
             dictBuf[name] = f.read()
             print name, ' ', len(dictBuf[name])
-    with open('./video/mk9.mp4') as f:
+    with open('./audio/mk9.mp4') as f:
         videoBuf = f.read()
         print 'video: mk9.mp4, buf size: ', len(videoBuf)
     return dictBuf, videoBuf
@@ -107,5 +107,5 @@ class CameraFactory(ClientFactory):
 
 if __name__ == '__main__':
     from twisted.internet import reactor
-    reactor.connectTCP(domain, 8082, CameraFactory())
+    reactor.connectTCP(domain, 8083, CameraFactory())
     reactor.run()

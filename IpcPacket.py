@@ -226,6 +226,15 @@ def getOnePacketFromBuf(buf):
     return getPacketFromFactory(buf[start:msgEnd]), buf[msgEnd:]
 
 
+def getAllPacketFromBuf(buf):
+    packet, buf = getOnePacketFromBuf(buf)
+    packets = list()
+    while packet:
+        packets.append(packet)
+        packet, buf = getOnePacketFromBuf(buf)
+    return (None, buf) if len(packets) == 0 else (packets, buf)
+
+
 
 if __name__ == '__main__':
 
@@ -238,22 +247,21 @@ if __name__ == '__main__':
         i += 1
     #print 'TOTAL PAYLOAD SIZE OF NANE LIST IS : ', len(payload)
 
+    '''
 
     with open('./testMsg', 'r') as f:
         strMsg = f.read()
     strMsg = 'fafadsfasdfhalksdfsalkdhfasjkldfhsa;flj' + strMsg + 'tail' + strMsg + 'alsd'
-    payload, strMsg = getPayloadFromBuf(strMsg)
-    while payload:
-        for name in getFileListFromPayload(payload):
-            print name
-        print '================== ALL PAYLOAD FINISHED =======================' 
-        payload, strMsg = getPayloadFromBuf(strMsg)
+    packets, strMsg = getAllPacketFromBuf(strMsg)
+    for p in packets:
+        print p.__class__
+        print p.totalMsgSize
+        print p.payloadSize
 
     print '============LEFT TAIL=================='
     print 'TAIL LEFT: \t', strMsg
     print 'LEFT SIZE: \t', len(strMsg)
 
-    '''
         
 
     
