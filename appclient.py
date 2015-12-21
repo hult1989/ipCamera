@@ -10,6 +10,7 @@ from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.protocols.basic import LineReceiver
 import os.path
 import time, random
+from threading import Thread
 
 from IpcPacket import *
 
@@ -89,6 +90,10 @@ class InputPanel(object):
             self.sendRawInput(cmd)
 
 class AppClient(Protocol):
+    def getInput(self, transport):
+        while True:
+            i = raw_input('INPUT SOMETHING: ')
+            print '===== %s =======' %(str(transport))
 
     def __init__(self):
         self.buf = ''
@@ -97,23 +102,44 @@ class AppClient(Protocol):
         self.calcRate = calc()
         self.fileBuf = list()
         self.fileName = ''
+        self.streamSize= None
+        self.streamStart= None
 
     def connectionMade(self):
         self.inputPanel = InputPanel(self, self.transport)
+        t = Thread(target=self.getInput, args=(self.transport,))
+        #t.start()
+
 
     def processFilePacket(self, packet):
         if self.fileSize is None:
+            print '========= RECEIVINT FILE =============='
             self.fileSize = packet.totalMsgSize
         self.fileSize -= packet.payloadSize
         self.fileBuf.append(packet.payload)
         self.calcRate(self.fileSize)
+        time.sleep(0.01)
         if self.fileSize == 0:
             self.fileSize = None
             with open('./video/' + self.fileName, 'w') as f:
                 for buf in self.fileBuf:
                     f.write(buf)
                 self.fileBuf = list()
+            print '========= ALL FILE ACCEPTED =============='
             self.inputPanel.getNext()
+
+    def processVideoStreamingPacket(self, packet):
+        now = time.time()
+        if self.streamStart is None:
+            self.streamStart = now
+            self.streamSize = 0
+        self.streamSize += packet.payloadSize
+        if now - self.streamStart > 1:
+            print '====== Streaming Rate: %.4f MB/s =======' %((self.streamSize)/(now-self.streamStart)/float(1024* 1024))
+            self.streamSize = 0
+            self.streamStart = now
+
+
 
     def processPacket(self, packetList, cameraPort):
         for packet in packetList:
@@ -126,6 +152,8 @@ class AppClient(Protocol):
                     print name
                 self.inputPanel.setNameList(self.nameList)
                 print '=========== All name list ============'
+            elif isinstance(packet, VideoStreamingPacket):
+                self.processVideoStreamingPacket(packet)
 
 
     def checkProcess(self):
@@ -138,27 +166,16 @@ class AppClient(Protocol):
         packets, self.buf = getAllPacketFromBuf(self.buf)
         if packets:
             self.processPacket(packets, self.transport)
+            if isinstance(packets[0], VideoStreamingPacket) or isinstance(packets[0], FilePacket):
+                pass
+            else:
+                self.inputPanel.getNext()
         else:
             print data
-        if self.fileSize is None:
             self.inputPanel.getNext()
-        '''
-        self.checkProcess()
-            while packet:
-                if not self.fileSize:
-                    self.fileSize = packet.totalMsgSize
-                self.fileBuf += packet.payload
-                packet, self.buf = getOnePacketFromBuf(self.buf)
-            if len(self.fileBuf) < self.fileSize:
-                print 'Accept Packet, totalSize: %d, current size: %d' %(self.fileSize, len(self.buf))
-            elif self.fileSize == len(self.fileBuf):
-                with open('video/' +  self.name, 'a') as f:
-                    print 'wirte to file: %s' %( self.name)
-                    print '===== all file received, total length %d ===========' %(self.fileSize,)
-                    f.write(self.fileBuf)
-                    self.fileBuf = ''
-                    self.fileSize = None
-        ''' 
+
+
+
 
 class AppClientFactory(ClientFactory):
     protocol = AppClient
@@ -189,3 +206,4 @@ def main(reactor):
 
 if __name__ == '__main__':
     task.react(main)
+    print 'BLOCK IN TASK.REACT METHOD'

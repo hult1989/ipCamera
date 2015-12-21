@@ -56,14 +56,17 @@ class IpcServer(Protocol):
         session = self.sessionList.getSessionByCamPort(cameraPort)
         session.getActiveApp().write(str(packet))
         if session.conversion.unfinished is None:
-            print '======== first filelist packet  ========'
             session.conversion.unfinished = packet.totalMsgSize
+            with open('./namelist.log', 'a') as f:
+                f.write('\n' + str(time.time()) + '\trequest file list')
         session.conversion.unfinished -= packet.payloadSize
+        with open('./namelist.log', 'a') as f:
+            f.write(packet.payload[:packet.payload.find('\x00')])
         #print '======== %d B to be transported ========' %(session.conversion.unfinished)
         if session.conversion.unfinished == 0:
-            print '======== last filelist packet  ========'
+            with open('./namelist.log', 'a') as f:
+                f.write('\n' + str(time.time()) + '\tfinish file list')
             session.conversion = None
-            print '======= Conversion CLOSED ========'
 
     def processFilePacket(self, packet, cameraPort):
         session = self.sessionList.getSessionByCamPort(cameraPort)
@@ -71,14 +74,18 @@ class IpcServer(Protocol):
         if session.conversion.unfinished is None:
             print '======== first file packet  ========'
             session.conversion.unfinished = packet.totalMsgSize
+            with open('./saved/' + session.conversion.filename, 'w') as f:
+                f.write('')
         session.conversion.unfinished -= packet.payloadSize
+        with open('./saved/' + session.conversion.filename, 'a') as f:
+            f.write(packet.payload)
         #print '======== %d B to be transported ========' %(session.conversion.unfinished)
         if session.conversion.unfinished == 0:
             print '======== last file packet  ========'
             session.conversion = None
             print '======= Conversion CLOSED ========'
 
-    def processStreamingPacket(packet, cameraPort):
+    def processStreamingPacket(self,packet, cameraPort):
         print '========  streaming ========='
         session = self.sessionList.getSessionByCamPort(cameraPort)
         session.getActiveApp().write(str(packet))
@@ -174,7 +181,7 @@ class AppProxy(Protocol):
                 log.msg('hello packet id %s' %(packet.payload))
                 appId, cameraId = packet.payload[:7], packet.payload[7:]
                 self.connectCamera(appId, cameraId, appPort)
-            elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket) or isinstance(packet, GetStreamingPacket):
+            elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket):
                 session = self.sessionList.getSessionByAppPort(appPort)
                 cameraPort = session.cameraPort
                 if session.conversion is None:
@@ -189,6 +196,10 @@ class AppProxy(Protocol):
                     cameraPort.write(str(packet))
                 else:
                     appPort.write('Camera busy, wait a minute')
+            elif isinstance(packet, GetStreamingPacket):
+                session = self.sessionList.getSessionByAppPort(appPort)
+                cameraPort = session.cameraPort
+                cameraPort.write(str(packet))
 
 
 
