@@ -1,3 +1,4 @@
+from util.BandwidthTester import BandwidthTester
 
 class Session(object):
     RQSTLIST = 1
@@ -22,6 +23,11 @@ class Session(object):
         self.sessBuf = ''
         self.conversion = None
         self.streamingClients = []
+        self.bandwidthTester = BandwidthTester()
+        self.fileList = list()
+
+    def getCachePath(self):
+        return '/'.join(('./cached', str(hash(self.cameraId))))
 
     def addAppTransport(self, appId, appTransport):
         self.appPorts[appId] = appTransport

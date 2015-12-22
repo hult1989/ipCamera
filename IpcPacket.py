@@ -112,6 +112,20 @@ class HelloPacket(IpcPacket):
         self.action = '\x02'
         self.cmd = '\x21'
 
+class HelloAckPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x04'
+        self.cmd = '\x21'
+
+class HelloErrPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x04'
+        self.cmd = '\x21'
+        self.status = '\x01'
+
+
 
 ################################################################
 
@@ -166,7 +180,12 @@ def generateFileListPayload(namelist):
 
 def getPacketFromFactory(strMsg):
     packet = IpcPacket(strMsg)
-    if (packet.action =='\x02') and (packet.cmd == '\x21'):
+    if (packet.action =='\x04') and (packet.cmd == '\x21'):
+        if packet.status == '\x00':
+            return HelloAckPacket(str(packet))
+        elif packet.status == '\x01':
+            return HelloErrPacket(str(packet))
+    elif (packet.action =='\x02') and (packet.cmd == '\x21'):
         return HelloPacket(str(packet))
     elif packet.action == '\x01':
         if packet.cmd == '\x01':

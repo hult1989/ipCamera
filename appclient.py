@@ -2,7 +2,6 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
-#from __future__ import print_function
 
 from twisted.internet import task
 from twisted.internet.defer import Deferred
@@ -10,9 +9,11 @@ from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.protocols.basic import LineReceiver
 import os.path
 import time, random
-from threading import Thread
 
 from IpcPacket import *
+from util.BandwidthTester import BandwidthTester
+from twisted.internet import stdio
+from twisted.protocols import basic
 
 
 def calc():
@@ -36,12 +37,15 @@ class InputPanel(object):
         self.cameraPort = cameraPort
         self.nameList = None
         self.appId = str(random.randint(100000, 999999))
+
+    def setCameraPort(self, cameraPort):
+        self.cameraPort = cameraPort
     
-    def getFile(self):
+    def getFile(self, seq):
         if self.nameList is None:
             print 'file name list is none, please reqest list first'
             return
-        seq = int(raw_input('input name seq: '))
+        seq = int(seq)
         seq %= len(self.nameList)
         name = self.nameList[seq]
         self.client.fileName = name
@@ -67,25 +71,19 @@ class InputPanel(object):
         self.nameList = nameList
 
     def connectToCamera(self):
-        i = raw_input('input camera id, 0 or None is script camer, 1 is real camer')
-        if str(i) == '0' or len(str(i)) == 0:
-            helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
-        elif str(i) == '1':
-            helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x00', 13))))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
         self.cameraPort.write(str(helloPacket))
 
     def sendRawInput(self, i):
         print 'send raw data: ', i
         self.cameraPort.write(i)
-        self.getNext()
 
-    def getNext(self):
-        cmd = raw_input('input next action(hello, file, list, connect, streaming):\n')
-        if cmd == 'file':
-            self.getFile()
+    def getNext(self, cmd):
+        if cmd.startswith('file'):
+            self.getFile(cmd.split()[1])
         elif cmd == 'list':
             self.getFileList()
-        elif cmd == 'connect' or len(cmd) == 0:
+        elif cmd == 'connect':
             self.connectToCamera()
         elif cmd == 'streaming':
             self.startVideoStreaming()
@@ -97,44 +95,37 @@ class InputPanel(object):
             self.sendRawInput(cmd)
 
 class AppClient(Protocol):
-    def getInput(self, inputPanel):
-        while True:
-            print 'GET USER INPUT: '.center(40, '=')
-            inputPanel.getNext()
-            time.sleep(0.5)
-
-
-
     def __init__(self):
         self.buf = ''
         self.nameList = []
         self.fileSize = None
-        self.calcRate = calc()
         self.fileBuf = list()
         self.fileName = ''
         self.streamSize= None
         self.streamStart= None
-        self.inputThread = None
+        self.inputPanel = InputPanel(self, None)
+        self.tester = None
 
     def connectionMade(self):
-        self.inputPanel = InputPanel(self, self.transport)
+        self.inputPanel.setCameraPort(self.transport)
 
 
     def processFilePacket(self, packet):
         if self.fileSize is None:
             print '========= RECEIVINT FILE =============='
             self.fileSize = packet.totalMsgSize
+            self.tester = BandwidthTester()
         self.fileSize -= packet.payloadSize
         self.fileBuf.append(packet.payload)
-        self.calcRate(self.fileSize)
+        self.tester.bandwithCalc(packet.payloadSize)
         if self.fileSize == 0:
             self.fileSize = None
+            self.tester = None
             with open('./video/' + self.fileName, 'w') as f:
                 for buf in self.fileBuf:
                     f.write(buf)
                 self.fileBuf = list()
             print '========= ALL FILE ACCEPTED =============='
-            #self.inputPanel.getNext()
 
     def processVideoStreamingPacket(self, packet):
         now = time.time()
@@ -162,6 +153,10 @@ class AppClient(Protocol):
                 print '=========== All name list ============'
             elif isinstance(packet, VideoStreamingPacket):
                 self.processVideoStreamingPacket(packet)
+            elif isinstance(packet, HelloAckPacket):
+                print '===== ack recevied from server, connected with server ===='
+            elif isinstance(packet, HelloErrPacket):
+                print '===== target camera not online ===='
 
 
     def checkProcess(self):
@@ -175,27 +170,17 @@ class AppClient(Protocol):
         time.sleep(0.01)
         if packets:
             self.processPacket(packets, self.transport)
-            if isinstance(packets[0], VideoStreamingPacket) or isinstance(packets[0], FilePacket):
-                pass
-            else:
-                pass
-                #self.inputPanel.getNext()
         else:
             print data
-            if not self.inputThread:
-                self.inputThread = Thread(target=self.getInput, args=(self.inputPanel,))
-                self.inputThread.start() 
-            #self.inputPanel.getNext()
-
-
 
 
 class AppClientFactory(ClientFactory):
-    protocol = AppClient
+    def buildProtocol(self, addr):
+        return self.protocol
 
     def __init__(self):
         self.done = Deferred()
-
+        self.protocol = AppClient()
 
     def clientConnectionFailed(self, connector, reason):
         print('connection failed:', reason.getErrorMessage())
@@ -211,12 +196,13 @@ class AppClientFactory(ClientFactory):
 def main(reactor):
     domain = 'localhost'
     #domain = 'huahai'
+    from stdin import Echo
     factory = AppClientFactory()
     reactor.connectTCP(domain, 8084, factory)
+    stdio.StandardIO(Echo(factory.protocol.inputPanel))
     return factory.done
 
 
 
 if __name__ == '__main__':
     task.react(main)
-    print 'BLOCK IN TASK.REACT METHOD'

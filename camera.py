@@ -1,6 +1,6 @@
 import socket
 from twisted.internet.protocol import Protocol, ClientFactory
-import os
+import os, time
 
 
 
@@ -21,7 +21,6 @@ def readFileToDictBuf(path):
     for name in getFileList(path):
         with open('/'.join((path, name))) as f:
             dictBuf[name] = f.read()
-            print name, ' ', len(dictBuf[name])
     with open('./audio/mk9.mp4') as f:
         videoBuf = f.read()
         print 'video: mk9.mp4, buf size: ', len(videoBuf)
@@ -34,9 +33,9 @@ class Camera(Protocol):
         self.fileBuf , self.videoBuf = readFileToDictBuf('audio')
         for name in self.fileBuf:
             print 'File name: %s , Size: %s' %(name, len(self.fileBuf[name]))
+        self.startStreaming = None
 
     def connectionMade(self):
-        print 'CONNECTION MADE!!!!!!!!!!!!==========='
         helloPacket = HelloPacket(str(IpcPacket(addHeader('Camera_890924', 13))))
         print 'Send data:  ', str(helloPacket)[12:]
         self.transport.write(str(helloPacket))
@@ -54,13 +53,23 @@ class Camera(Protocol):
             for packetPayload in buffer2packets(self.fileBuf[name]):
                 packetPayload = str(FilePacket(packetPayload))
                 self.transport.write(packetPayload)
+                #time.sleep(0.001)
             print 'all file sended!'
         elif isinstance(packet, GetStreamingPacket):
-            for packet in buffer2packets(self.videoBuf):
+            if not self.startStreaming:
+                self.startStreaming = True
                 print 'Video streaming request accepted, start streaming...'
+            #while self.startStreaming:
+            for packet in buffer2packets(self.videoBuf):
                 packet = str(VideoStreamingPacket(packet))
                 self.transport.write(packet)
             print 'Video Streaming Finished!'
+            self.startStreaming = None
+        elif isinstance(packet, CloseStreamingPacket):
+            self.startStreaming = None
+            print 'Streaming Canceled by APP client'
+        elif isinstance(packet, HelloAckPacket):
+            print 'server ack accepted, connected'
 
 
 
@@ -72,21 +81,7 @@ class Camera(Protocol):
             return
         self.processPacket(packet)
 
-        '''
-        se
-        if isinstance(packet, GetListCmdPacket):
-                    elif isinstance(packet, GetFileCmdPacket):
-            name = packet.payload[:packet.payload.find('\x00')]
-            #print name, ' response with app request, file len: ', len(self.fileBuf[name])
-            for packetPayload in buffer2packets(self.fileBuf[name]):
-                packetPayload = str(FilePacket(packetPayload))
-                self.transport.write(packetPayload)
-                #print 'send file slice, packet len: ', len(packetPayload)
-            #print 'all file sended!'
-        #elif isinstance(packet, GetStreamingPacket):
-        '''
-
-
+        
 
             
 class CameraFactory(ClientFactory):
@@ -96,7 +91,6 @@ class CameraFactory(ClientFactory):
 
 
     def buildProtocol(self, addr):
-        print 'connected!!'
         return Camera()
 
     def clientConnectionLost(self, connector, reason):

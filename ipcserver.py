@@ -8,6 +8,8 @@ from twisted.internet.defer import inlineCallbacks, returnValue, Deferred
 import time
 from IpcPacket import *
 from Session import *
+import os
+
 
 
 
@@ -21,11 +23,14 @@ class IpcServer(Protocol):
     def cameraConnected(self, cameraId, cameraPort):
         self.sessionList.addSession(cameraId, Session(cameraId, cameraPort))
         log.msg('==== camera %s connected=============' %(cameraId))
+        if not os.path.exists('./cached/' + str(hash(cameraId))):
+            os.system('mkdir %s' %('./cached/' +  str(hash(cameraId))))
         i = 0
         for session in self.sessionList.getAllSession():
             log.msg('ACTIVE SESSION: ' + str(i)  +'\t' + str(vars(session)))
             i += 1
         log.msg('====================================')
+        cameraPort.write(str(HelloAckPacket(addHeader('', 0))))
 
 
     def connectionLost(self, reason):
@@ -62,23 +67,30 @@ class IpcServer(Protocol):
         session.conversion.unfinished -= packet.payloadSize
         with open('./namelist.log', 'a') as f:
             f.write(packet.payload[:packet.payload.find('\x00')])
+
+        for name in getFileListFromPayload(packet.payload):
+            if name not in session.fileList:
+                session.fileList.append(name)
         #print '======== %d B to be transported ========' %(session.conversion.unfinished)
         if session.conversion.unfinished == 0:
             with open('./namelist.log', 'a') as f:
                 f.write('\n' + str(time.time()) + '\tfinish file list')
             session.conversion = None
+            log.msg('=== %s has file %s ===' %(session.cameraId, str(session.fileList)))
 
     def processFilePacket(self, packet, cameraPort):
         session = self.sessionList.getSessionByCamPort(cameraPort)
-        time.sleep(0.01)
+        #time.sleep(0.01)
         session.getActiveApp().write(str(packet))
+        session.bandwidthTester.bandwithCalc(packet.payloadSize)
+        filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename
         if session.conversion.unfinished is None:
             print '======== first file packet  ========'
             session.conversion.unfinished = packet.totalMsgSize
-            with open('./saved/' + session.conversion.filename, 'w') as f:
+            with open(filepath, 'w') as f:
                 f.write('')
         session.conversion.unfinished -= packet.payloadSize
-        with open('./saved/' + session.conversion.filename, 'a') as f:
+        with open(filepath, 'a') as f:
             f.write(packet.payload)
         #print '======== %d B to be transported ========' %(session.conversion.unfinished)
         if session.conversion.unfinished == 0:
@@ -87,14 +99,15 @@ class IpcServer(Protocol):
             print '======= Conversion CLOSED ========'
 
     def processStreamingPacket(self,packet, cameraPort):
-        print '========  streaming ========='
+        #print '========  streaming ========='
         session = self.sessionList.getSessionByCamPort(cameraPort)
-        time.sleep(0.01)
+        #time.sleep(0.01)
         if len(session.getStreamingClient()) == 0:
             print '======= app drop ports ========='
         else:
             for port in session.getStreamingClient():
                 port.write(str(packet))
+                session.bandwidthTester.bandwithCalc(packet.payloadSize)
 
     def processPacket(self, packets, cameraPort):
         for packet in packets:
@@ -142,86 +155,6 @@ class IpcServer(Protocol):
 
 
 
-class AppProxyFactory(Factory):
-    def __init__(self, sessionList):
-        self.sessionList = sessionList
-        
-    def buildProtocol(self, addr):
-        return AppProxy(self.sessionList)
-
-
-class AppProxy(Protocol):
-    def __init__(self, sessionList):
-        #self.sessionList = sessionList
-        self.sessionList = sessionList
-        self.serverBuf = dict()
-
-    def connectionLost(self, reason):
-        log.msg('reason: ', str(reason))
-   
-    def connectionMade(self):
-        self.transport.write('hello, app~\n')
-        #self.transport.loseConnection()
-
-    def processPacket(self, packets, appPort):
-        for packet in packets:
-            if isinstance(packet, HelloPacket):
-                log.msg('hello packet id %s' %(packet.payload))
-                appId, cameraId = packet.payload[:7], packet.payload[7:]
-                self.connectCamera(appId, cameraId, appPort)
-            elif isinstance(packet, GetListCmdPacket) or isinstance(packet, GetFileCmdPacket):
-                session = self.sessionList.getSessionByAppPort(appPort)
-                cameraPort = session.cameraPort
-                if session.conversion is None:
-                    print '======= Conversion OPEN ========'
-                    session.conversion = Session.Conversion(appPort, cameraPort, Session.RQSTLIST)
-                    if isinstance(packet, GetFileCmdPacket): 
-                        session.conversion.state = Session.RQSTFILE
-                        session.conversion.filename = packet.payload[:packet.payload.find('\x00')]
-
-                    elif isinstance(packet, GetFileCmdPacket): 
-                        session.conversion.state = Session.RQSTVIDEO
-                    cameraPort.write(str(packet))
-                else:
-                    appPort.write('Camera busy, wait a minute')
-            elif isinstance(packet, GetStreamingPacket):
-                session = self.sessionList.getSessionByAppPort(appPort)
-                session.addStreamingClient(appPort)
-                cameraPort = session.cameraPort
-                cameraPort.write(str(packet))
-            elif isinstance(packet, CloseStreamingPacket):
-                session = self.sessionList.getSessionByAppPort(appPort)
-                print '====== dropping streaming client ===='
-                session.removeStreamingClient(appPort)
-
-
-
-
-
-    def connectCamera(self, appId, cameraId, appPort):
-        if not self.sessionList.getSessionByCamId(cameraId):
-            appPort.write('no camera on line')
-            appPort.loseConnection()
-        #elif not self.sessionList.getSessionByAppPort(appPort):
-        else:
-            appPort.write(IpcPacket.CONNECTED)
-            self.sessionList.getSessionByCamId(cameraId).addAppTransport(appId, appPort)
-            log.msg('=== ONLINE SESSION: %s ===' %(vars(self.sessionList.getSessionByCamId(cameraId))))
-        #else:
-            #raise Exception('App already exists in session')
-
-
-    def dataReceived(self, data):
-        if not self.serverBuf.has_key(str(self.transport)):
-            self.serverBuf[str(self.transport)] = ''
-        self.serverBuf[str(self.transport)] += data
-        packets, self.serverBuf[str(self.transport)] = getAllPacketFromBuf(self.serverBuf[str(self.transport)])
-        if packets:
-            self.processPacket(packets, self.transport)
-        else:
-            print '======== server received data: %s      ========' %(data,)
-
-
 
 
 class IpcServerFactory(Factory):
@@ -230,41 +163,9 @@ class IpcServerFactory(Factory):
 
     def buildProtocol(self, addr):
         return self.protocol
-'''
-
-class MainPage(Resource):
-    isLeaf = True
-
-    def __init__(self, protocol):
-        self.ipcProtocol = protocol
-
-    def getMsgFromCamera(self, transport, message, request):
-        transport.write(message)
-        d = Deferred()
-        self.ipcProtocol.devicePair.request = request
-        self.ipcProtocol.devicePair.d = d
-        log.msg(str(vars(self.ipcProtocol.devicePair)))
-        return d
 
 
-    def render_POST(self, request):
 
-        @inlineCallbacks
-        def responseAPP(transport, message, request):
-            appRes = yield self.getMsgFromCamera(transport, message, request)
-            print 'appres from yield is: ', str(appRes), appRes.__class__
-            request.write(appRes)
-            request.finish()
-            returnValue(str(appRes))
-
-        appPayload = str(request.content.read())
-        log.msg('write to connection %s' %(str(self.ipcProtocol.devicePair),))
-        appRes = responseAPP(self.ipcProtocol.devicePair.transport, appPayload, request)
-        print 'RESULT FROM RETURNVALUE', appRes, appRes.__class__
-        return NOT_DONE_YET
-
-        
-'''
-SESSIONLIST = SessionList()
-ipcServerFactory = IpcServerFactory(SESSIONLIST)
-appProxyFactory = AppProxyFactory(SESSIONLIST)
+if __name__ == '__main__':
+    SESSIONLIST = SessionList()
+    ipcServerFactory = IpcServerFactory(SESSIONLIST)
