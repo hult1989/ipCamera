@@ -58,6 +58,11 @@ class InputPanel(object):
         self.cameraPort.write(str(packet))
         print 'request video streaming'
         
+    def closeVideoStreaming(self):
+        packet = CloseStreamingPacket(str(IpcPacket(addHeader('', 0))))
+        self.cameraPort.write(str(packet))
+        print 'close video streaming'
+
     def setNameList(self, nameList):
         self.nameList = nameList
 
@@ -84,16 +89,21 @@ class InputPanel(object):
             self.connectToCamera()
         elif cmd == 'streaming':
             self.startVideoStreaming()
+        elif cmd == 'close':
+            self.closeVideoStreaming()
         elif cmd == 'exit':
             exit()
         else:
             self.sendRawInput(cmd)
 
 class AppClient(Protocol):
-    def getInput(self, transport):
+    def getInput(self, inputPanel):
         while True:
-            i = raw_input('INPUT SOMETHING: ')
-            print '===== %s =======' %(str(transport))
+            print 'GET USER INPUT: '.center(40, '=')
+            inputPanel.getNext()
+            time.sleep(0.5)
+
+
 
     def __init__(self):
         self.buf = ''
@@ -104,11 +114,10 @@ class AppClient(Protocol):
         self.fileName = ''
         self.streamSize= None
         self.streamStart= None
+        self.inputThread = None
 
     def connectionMade(self):
         self.inputPanel = InputPanel(self, self.transport)
-        t = Thread(target=self.getInput, args=(self.transport,))
-        #t.start()
 
 
     def processFilePacket(self, packet):
@@ -118,7 +127,6 @@ class AppClient(Protocol):
         self.fileSize -= packet.payloadSize
         self.fileBuf.append(packet.payload)
         self.calcRate(self.fileSize)
-        time.sleep(0.01)
         if self.fileSize == 0:
             self.fileSize = None
             with open('./video/' + self.fileName, 'w') as f:
@@ -126,7 +134,7 @@ class AppClient(Protocol):
                     f.write(buf)
                 self.fileBuf = list()
             print '========= ALL FILE ACCEPTED =============='
-            self.inputPanel.getNext()
+            #self.inputPanel.getNext()
 
     def processVideoStreamingPacket(self, packet):
         now = time.time()
@@ -164,15 +172,20 @@ class AppClient(Protocol):
         self.buf += data
         #print '=== in buf size: %s ===' %(len(self.buf))
         packets, self.buf = getAllPacketFromBuf(self.buf)
+        time.sleep(0.01)
         if packets:
             self.processPacket(packets, self.transport)
             if isinstance(packets[0], VideoStreamingPacket) or isinstance(packets[0], FilePacket):
                 pass
             else:
-                self.inputPanel.getNext()
+                pass
+                #self.inputPanel.getNext()
         else:
             print data
-            self.inputPanel.getNext()
+            if not self.inputThread:
+                self.inputThread = Thread(target=self.getInput, args=(self.inputPanel,))
+                self.inputThread.start() 
+            #self.inputPanel.getNext()
 
 
 

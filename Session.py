@@ -21,6 +21,7 @@ class Session(object):
         self.appPorts = dict()
         self.sessBuf = ''
         self.conversion = None
+        self.streamingClients = []
 
     def addAppTransport(self, appId, appTransport):
         self.appPorts[appId] = appTransport
@@ -40,6 +41,15 @@ class Session(object):
             return self.conversion.getActiveApp()
         else:
             return None
+
+    def removeStreamingClient(self, appPort):
+        self.streamingClients.remove(appPort)
+
+    def addStreamingClient(self, appPort):
+        self.streamingClients.append(appPort)
+
+    def getStreamingClient(self):
+        return self.streamingClients
 
 class SessionList(object):
     def __init__(self):

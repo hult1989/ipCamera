@@ -70,6 +70,7 @@ class IpcServer(Protocol):
 
     def processFilePacket(self, packet, cameraPort):
         session = self.sessionList.getSessionByCamPort(cameraPort)
+        time.sleep(0.01)
         session.getActiveApp().write(str(packet))
         if session.conversion.unfinished is None:
             print '======== first file packet  ========'
@@ -88,7 +89,12 @@ class IpcServer(Protocol):
     def processStreamingPacket(self,packet, cameraPort):
         print '========  streaming ========='
         session = self.sessionList.getSessionByCamPort(cameraPort)
-        session.getActiveApp().write(str(packet))
+        time.sleep(0.01)
+        if len(session.getStreamingClient()) == 0:
+            print '======= app drop ports ========='
+        else:
+            for port in session.getStreamingClient():
+                port.write(str(packet))
 
     def processPacket(self, packets, cameraPort):
         for packet in packets:
@@ -133,24 +139,6 @@ class IpcServer(Protocol):
             print data
         else:
             self.processPacket(packets, self.transport)
-
-        
-        '''
-
-        if not self.serverBuf.has_key(str(self.transport)):
-            self.serverBuf[str(self.transport)] = ''
-        self.serverBuf[str(self.transport)] += data
-        packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
-            if isinstance(packet, HelloPacket):
-                self.cameraConnected(packet.payload, self.transport)
-            elif packet.cmd == '\x01':  
-            elif packet.cmd == '\x02':
-                log.msg('WRITE TO FILE%s' %(self.session.name))
-                with open(self.session.name, 'a') as f:
-                    f.write(packet.payload)
-                    #log.msg('cache file: %s, length: %d'  %(self.name, packet.payloadSize))
-            packet, self.serverBuf[str(self.transport)] = getOnePacketFromBuf(self.serverBuf[str(self.transport)])
-        '''
 
 
 
@@ -198,8 +186,14 @@ class AppProxy(Protocol):
                     appPort.write('Camera busy, wait a minute')
             elif isinstance(packet, GetStreamingPacket):
                 session = self.sessionList.getSessionByAppPort(appPort)
+                session.addStreamingClient(appPort)
                 cameraPort = session.cameraPort
                 cameraPort.write(str(packet))
+            elif isinstance(packet, CloseStreamingPacket):
+                session = self.sessionList.getSessionByAppPort(appPort)
+                print '====== dropping streaming client ===='
+                session.removeStreamingClient(appPort)
+
 
 
 
