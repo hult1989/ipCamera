@@ -17,11 +17,11 @@ class Echo(basic.LineReceiver):
         self.inputPanel = inputPanel
 
     def connectionMade(self):
-        print 'Input Cmd(connect, list, file seq, streaming, close, exit):  '
+        self.inputPanel.showInstruction()
 
     def lineReceived(self, line):
+        self.inputPanel.showInstruction()
         self.inputPanel.getNext(line)
-        print 'Input Cmd(connect, list, file seq, streaming, close, exit):  '
 
 def main():
     stdio.StandardIO(Echo())

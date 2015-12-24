@@ -61,8 +61,13 @@ class Camera(Protocol):
                 print 'Video streaming request accepted, start streaming...'
             #while self.startStreaming:
             for packet in buffer2packets(self.videoBuf):
-                packet = str(VideoStreamingPacket(packet))
-                self.transport.write(packet)
+                if self.startStreaming:
+                    packet = str(VideoStreamingPacket(packet))
+                    self.transport.write(packet)
+                    #time.sleep(0.001)
+                else:
+                    print 'Video Streaming canceled!'
+                    break
             print 'Video Streaming Finished!'
             self.startStreaming = None
         elif isinstance(packet, CloseStreamingPacket):

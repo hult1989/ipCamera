@@ -52,24 +52,41 @@ class AppProxy(Protocol):
         if os.path.exists(filePath):
             self.respWithCachedFile(appPort, filePath)
         elif session.conversion is None:
-            print '======= Conversion OPEN ========'
-            session.conversion = Session.Conversion(appPort, cameraPort, Session.RQSTLIST)
+            print '======= FILE Conversion OPEN ========'
+            appId = session.getAppIdByPort(appPort)
+            session.conversion = Session.Conversion(appPort, appId, cameraPort, Session.RQSTLIST)
             session.conversion.state = Session.RQSTFILE
             session.conversion.filename = filename
             cameraPort.write(str(packet))
         else:
-            appPort.write('Camera busy, wait a minute')
+            appId = session.getAppIdByPort(appPort)
+            if session.conversion.appId == appId:
+                print '=== FRESH CONVERSION ==='
+                session.conversion.appPort = appPort
+                cameraPort.write(str(packet))
+            else:
+                appPort.write('Camera busy, wait a minute')
 
     def processGetListPacket(self, packet, appPort):
         session = self.sessionList.getSessionByAppPort(appPort)
         cameraPort = session.cameraPort
         if session.conversion is None:
-            print '======= Conversion OPEN ========'
-            session.conversion = Session.Conversion(appPort, cameraPort, Session.RQSTLIST)
+            print '======= LIST Conversion OPEN ========'
+            appId = session.getAppIdByPort(appPort)
+            session.conversion = Session.Conversion(appPort, appId, cameraPort, Session.RQSTLIST)
             session.conversion.state = Session.RQSTLIST
             cameraPort.write(str(packet))
+        elif session.getAppIdByPord(appPort) == session.conversion.appId:
+            cameraPort.write(str(packet))
         else:
-            appPort.write('Camera busy, wait a minute')
+            appId = session.getAppIdByPort(appPort)
+            if session.conversion.appId == appId:
+                print '=== FRESH CONVERSION ==='
+                session.conversion.appPort = appPort
+                cameraPort.write(str(packet))
+            else:
+                appPort.write('Camera busy, wait a minute')
+
 
 
     def processPacket(self, packets, appPort):

@@ -6,8 +6,9 @@ class Session(object):
     RQSTVIDEO = 3
 
     class Conversion(object):
-        def __init__(self, appPort, cameraPort, state):
+        def __init__(self, appPort, appId, cameraPort, state):
             self.activeAppPort = appPort
+            self.appId = appId
             self.state = state
             self.unfinished = None
             self.time = None
@@ -29,6 +30,7 @@ class Session(object):
     def getCachePath(self):
         return '/'.join(('./cached', str(hash(self.cameraId))))
 
+
     def addAppTransport(self, appId, appTransport):
         self.appPorts[appId] = appTransport
 
@@ -37,6 +39,13 @@ class Session(object):
             return self.appPorts[appId]
         except:
             return None
+
+    def getAppIdByPort(self, appPort):
+        for appId in self.appPorts:
+            if self.appPorts[appId] == appPort:
+                return str(appId)
+        return None
+
 
     def getAllAppPorts(self):
         for appId in self.appPorts:
