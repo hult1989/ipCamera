@@ -199,8 +199,8 @@ class AppClientFactory(ClientFactory):
 
 
 def main(reactor):
-    domain = 'localhost'
-    #domain = 'huahai'
+    #domain = 'localhost'
+    domain = 'huahai'
     from stdin import Echo
     factory = AppClientFactory()
     reactor.connectTCP(domain, 8084, factory)

@@ -6,8 +6,8 @@ import os, time
 
 from  IpcPacket import *
 
-#domain = 'huahai'
-domain = 'localhost'
+domain = 'huahai'
+#domain = 'localhost'
 
 def socketSendInPartial(sock, message):
     alreadySent = 0

@@ -124,7 +124,7 @@ class IpcServer(Protocol):
         #time.sleep(0.01)
         session.getActiveApp().write(str(packet))
         session.bandwidthTester.bandwithCalc(packet.payloadSize)
-        filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename
+        filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename + '.tmp'
         if session.conversion.unfinished is None:
             print '======== first file packet  ========'
             session.conversion.unfinished = packet.totalMsgSize
@@ -136,6 +136,9 @@ class IpcServer(Protocol):
         #print '======== %d B to be transported ========' %(session.conversion.unfinished)
         if session.conversion.unfinished == 0:
             print '======== last file packet  ========'
+            filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename 
+            renameCmd = 'mv %s.tmp %s' %(filepath, filepath)
+            os.system(renameCmd) 
             session.conversion = None
             print '======= FILE Conversion CLOSED ========'
 
