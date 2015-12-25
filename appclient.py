@@ -36,7 +36,8 @@ class InputPanel(object):
         self.client = client
         self.cameraPort = cameraPort
         self.nameList = None
-        self.appId = str(random.randint(100000, 999999))
+        #self.appId = str(random.randint(100000, 999999))
+        self.appId = 'bobdan'
 
     def setCameraPort(self, cameraPort):
         self.cameraPort = cameraPort
@@ -71,8 +72,8 @@ class InputPanel(object):
         self.nameList = nameList
 
     def connectToCamera(self):
-        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x00', 13))))
-        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x00', 13))))
+        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
         self.cameraPort.write(str(helloPacket))
 
     def sendRawInput(self, i):

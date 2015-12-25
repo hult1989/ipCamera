@@ -99,7 +99,12 @@ class IpcServer(Protocol):
 
     def processFileListPacket(self, packet, cameraPort):
         session = self.sessionList.getSessionByCamPort(cameraPort)
-        session.getActiveApp().write(str(packet))
+        for port in session.getAllAppPorts():
+            try:
+                port.write(str(packet))
+            except Exception as e:
+                log.msg('Error in write to app port, %s' %(str(e)))
+        #session.getActiveApp().write(str(packet))
         if session.conversion.unfinished is None:
             session.conversion.unfinished = packet.totalMsgSize
             with open('./namelist.log', 'a') as f:
@@ -121,8 +126,13 @@ class IpcServer(Protocol):
 
     def processFilePacket(self, packet, cameraPort):
         session = self.sessionList.getSessionByCamPort(cameraPort)
+        for port in session.getAllAppPorts():
+            try:
+                port.write(str(packet))
+            except Exception as e:
+                log.msg('Error in write to app port, %s' %(str(e)))
         #time.sleep(0.01)
-        session.getActiveApp().write(str(packet))
+        #session.getActiveApp().write(str(packet))
         session.bandwidthTester.bandwithCalc(packet.payloadSize)
         filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename + '.tmp'
         if session.conversion.unfinished is None:
@@ -171,7 +181,7 @@ class IpcServer(Protocol):
         self.serverBuf[str(self.transport)] += data
         packets, self.serverBuf[str(self.transport)] = getAllPacketFromBuf(self.serverBuf[str(self.transport)])
         if not packets:
-            print data
+            log.msg('NO PACKETS, but raw: %s' %(print data))
         else:
             self.processPacket(packets, self.transport)
 

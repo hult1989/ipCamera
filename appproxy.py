@@ -76,7 +76,7 @@ class AppProxy(Protocol):
             session.conversion = Session.Conversion(appPort, appId, cameraPort, Session.RQSTLIST)
             session.conversion.state = Session.RQSTLIST
             cameraPort.write(str(packet))
-        elif session.getAppIdByPord(appPort) == session.conversion.appId:
+        elif session.getAppIdByPort(appPort) == session.conversion.appId:
             cameraPort.write(str(packet))
         else:
             appId = session.getAppIdByPort(appPort)
@@ -137,7 +137,7 @@ class AppProxy(Protocol):
         if packets:
             self.processPacket(packets, self.transport)
         else:
-            print '======== server received data: %s      ========' %(data,)
+            log.msg( '======== server received data: %s      ========' %(str(data)))
 
 if __name__ == '__main__':
     SESSIONLIST = SessionList()
