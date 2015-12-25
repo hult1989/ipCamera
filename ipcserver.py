@@ -105,20 +105,23 @@ class IpcServer(Protocol):
             except Exception as e:
                 log.msg('Error in write to app port, %s' %(str(e)))
         #session.getActiveApp().write(str(packet))
+
         if session.conversion.unfinished is None:
             session.conversion.unfinished = packet.totalMsgSize
+            session.conversion.cvsnBuf = ''
             with open('./namelist.log', 'a') as f:
                 f.write('\n' + str(time.time()) + '\trequest file list')
-        session.conversion.unfinished -= packet.payloadSize
-        with open('./namelist.log', 'a') as f:
-            f.write(packet.payload[:packet.payload.find('\x00')])
 
-        for name in getFileListFromPayload(packet.payload):
-            if name not in session.fileList:
-                session.fileList.append(name)
-        #print '======== %d B to be transported ========' %(session.conversion.unfinished)
-        if session.conversion.unfinished == 0:
+        session.conversion.unfinished -= packet.payloadSize
+        session.conversion.cvsnBuf += packet.payload
+
+        if session.conversion.unfinished <= 0:
+            for name in getFileListFromPayload(session.conversion.cvsnBuf):
+                if name not in session.fileList:
+                    session.fileList.append(name)
             with open('./namelist.log', 'a') as f:
+                for name in session.fileList:
+                    f.write(name+'\n')
                 f.write('\n' + str(time.time()) + '\tfinish file list')
             session.conversion = None
             log.msg('=== %s has file %s ===' %(session.cameraId, str(session.fileList)))
@@ -144,7 +147,7 @@ class IpcServer(Protocol):
         with open(filepath, 'a') as f:
             f.write(packet.payload)
         #print '======== %d B to be transported ========' %(session.conversion.unfinished)
-        if session.conversion.unfinished == 0:
+        if session.conversion.unfinished <= 0:
             print '======== last file packet  ========'
             filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename 
             renameCmd = 'mv %s.tmp %s' %(filepath, filepath)
@@ -181,7 +184,7 @@ class IpcServer(Protocol):
         self.serverBuf[str(self.transport)] += data
         packets, self.serverBuf[str(self.transport)] = getAllPacketFromBuf(self.serverBuf[str(self.transport)])
         if not packets:
-            log.msg('NO PACKETS, but raw: %s' %(print data))
+            log.msg('NO PACKETS, but raw: %s' %(str(data)))
         else:
             self.processPacket(packets, self.transport)
 

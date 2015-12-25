@@ -266,8 +266,6 @@ if __name__ == '__main__':
         i += 1
     #print 'TOTAL PAYLOAD SIZE OF NANE LIST IS : ', len(payload)
 
-    '''
-
     with open('./testMsg', 'r') as f:
         strMsg = f.read()
     strMsg = 'fafadsfasdfhalksdfsalkdhfasjkldfhsa;flj' + strMsg + 'tail' + strMsg + 'alsd'
@@ -280,6 +278,10 @@ if __name__ == '__main__':
     print '============LEFT TAIL=================='
     print 'TAIL LEFT: \t', strMsg
     print 'LEFT SIZE: \t', len(strMsg)
+    '''
+    for name in getFileListFromPayload('asdfsafasdfsdf\x00\x00\x00\x00'):
+        print name
+
 
         
 

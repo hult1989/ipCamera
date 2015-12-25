@@ -16,20 +16,6 @@ from twisted.internet import stdio
 from twisted.protocols import basic
 
 
-def calc():
-    timestamp = []
-    size = []
-    def calcRate(fileSize):
-        if len(size) == 0:
-            size.append(fileSize)
-            timestamp.append(time.time())
-        elif time.time() - timestamp[0] > 1:
-            #print '==== Total Size %s ====' %(fileSize)
-            result = (size[0]- fileSize) / float(time.time() - timestamp[0])
-            size[0] = fileSize
-            timestamp[0] = time.time()
-            print 'RATE IS: ', result / 1024 / 1024 , ' MB/s'
-    return calcRate
 
 class InputPanel(object):
     def __init__(self, client, cameraPort):
@@ -72,8 +58,8 @@ class InputPanel(object):
         self.nameList = nameList
 
     def connectToCamera(self):
-        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x00', 13))))
-        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
+        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x00', 13))))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
         self.cameraPort.write(str(helloPacket))
 
     def sendRawInput(self, i):
@@ -103,9 +89,9 @@ class InputPanel(object):
 class AppClient(Protocol):
     def __init__(self):
         self.buf = ''
+        self.fileBuf = None
         self.nameList = []
         self.fileSize = None
-        self.fileBuf = list()
         self.fileName = ''
         self.streamSize= None
         self.streamStart= None
@@ -118,6 +104,7 @@ class AppClient(Protocol):
 
     def processFilePacket(self, packet):
         if self.fileSize is None:
+            self.fileBuf = list()
             print '========= RECEIVINT FILE =============='
             self.fileSize = packet.totalMsgSize
             self.tester = BandwidthTester()
@@ -131,7 +118,25 @@ class AppClient(Protocol):
                 for buf in self.fileBuf:
                     f.write(buf)
                 self.fileBuf = list()
+            self.fileBuf = None
             print '========= ALL FILE ACCEPTED =============='
+
+    def processListPacket(self, packet):
+        if self.fileSize is None:
+            self.nameList = list()
+            self.fileBuf = ''
+            print '========= RECEIVINT LIST =============='
+            self.fileSize = packet.totalMsgSize
+        self.fileSize -= packet.payloadSize
+        self.fileBuf += packet.payload
+        if self.fileSize == 0:
+            self.fileSize = None
+            for name in getFileListFromPayload(self.fileBuf):
+                print name
+                self.nameList.append(name)
+            self.fileBuf = None
+            self.inputPanel.setNameList(self.nameList)
+            print '========= ALL LIST ACCEPTED =============='
 
     def processVideoStreamingPacket(self, packet):
         now = time.time()
@@ -151,12 +156,7 @@ class AppClient(Protocol):
             if isinstance(packet, FilePacket):
                 self.processFilePacket(packet)
             elif isinstance(packet, FileListPacket):
-                print '=========== name list  ============'
-                for name in getFileListFromPayload(packet.payload):
-                    self.nameList.append(name)
-                    print name
-                self.inputPanel.setNameList(self.nameList)
-                print '=========== All name list ============'
+                self.processListPacket(packet)
             elif isinstance(packet, VideoStreamingPacket):
                 self.processVideoStreamingPacket(packet)
             elif isinstance(packet, HelloAckPacket):
@@ -200,8 +200,8 @@ class AppClientFactory(ClientFactory):
 
 
 def main(reactor):
-    #domain = 'localhost'
-    domain = 'huahai'
+    domain = 'localhost'
+    #domain = 'huahai'
     from stdin import Echo
     factory = AppClientFactory()
     reactor.connectTCP(domain, 8084, factory)
