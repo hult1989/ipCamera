@@ -74,6 +74,7 @@ class IpcServer(Protocol):
     def activeSyncFile(self):
         for session in self.sessionList.getAllSession():
             if len(session.fileList) == 0:
+                session.cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
                 return
             if FileStatus.PENDING in session.fileList.values():
                 print  ('camera busy, some file in transmission')
