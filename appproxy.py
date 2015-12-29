@@ -52,6 +52,7 @@ class AppProxy(Protocol):
         filePath= '/'.join((session.getCachePath(), filename))
         if os.path.exists(filePath):
             self.respWithCachedFile(appPort, filePath)
+        '''
         elif session.conversion is None:
             print '======= FILE Conversion OPEN ========'
             appId = session.getAppIdByPort(appPort)
@@ -68,6 +69,7 @@ class AppProxy(Protocol):
             else:
                 errPacket = FileListErrPacket(IpcPacket(addHeader('camera busy', 11)))
                 appPort.write(str(errPacket))
+        '''
 
     def processGetListPacket(self, packet, appPort):
         session = self.sessionList.getSessionByAppPort(appPort)

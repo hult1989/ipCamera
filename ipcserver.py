@@ -63,6 +63,7 @@ class IpcServer(Protocol):
         self.sent = None
         self.inputPanel = IpcServer.InputPanel(None)
         self.syncTask = task.LoopingCall(self.activeSyncFile)
+        self.syncTask.start(5)
 
     def connectionLost(self, reason):
         #log.msg('connection Lost with: ' + str(self.session.cameraTransport))
@@ -80,7 +81,7 @@ class IpcServer(Protocol):
                 session.cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
                 return
             if FileStatus.PENDING in session.fileList.values():
-                print  ('camera %s busy, some file in transmission' %(session.cameraId))
+                print  '===camera %s busy, some file in transmission===' %(str(vars(session)))
                 continue
             for name in session.fileList:
                 if session.fileList[name] == FileStatus.NXIST:
@@ -101,7 +102,7 @@ class IpcServer(Protocol):
         self.sessionList.addSession(cameraId, Session(cameraId, cameraPort))
         print 'server can see sessionlist', str(self.sessionList)
         self.inputPanel.setSessionList(self.sessionList)
-        log.msg('==== camera %s connected=============' %(cameraId))
+        log.msg('==== camera %s connected=============' %(str(list(cameraId))))
         if not os.path.exists('./cached/' + str(hash(cameraId))):
             os.system('mkdir %s' %('./cached/' +  str(hash(cameraId))))
         i = 0
@@ -138,7 +139,7 @@ class IpcServer(Protocol):
                 f.write('\n[ ' + str(time.time()) + ' ] finish file list')
             session.sessBuf = None
             session.unfinished = None
-            log.msg('=== %s has file %s ===' %(session.cameraId, str(session.fileList)))
+            log.msg('=== %s has file %s ===' %(str(list(session.cameraId)), str(session.fileList)))
             print '======= LIST Conversion CLOSED ========'
 
     def processFilePacket(self, packet, cameraPort):
@@ -165,7 +166,6 @@ class IpcServer(Protocol):
             session.fileList[session.getPendingName()] = FileStatus.EXIST
             assert session.getPendingName() is None, 'status ERROR in %s' %(session.getPendingName())
             print '======= FILE Conversion CLOSED ========'
-            log.msg('=== %s has file %s ===' %(session.cameraId, str(session.fileList)))
 
     def processStreamingPacket(self,packet, cameraPort):
         #print '========  streaming ========='
@@ -182,7 +182,6 @@ class IpcServer(Protocol):
     def processHelloPacket(self, packet, cameraPort):
         self.cameraConnected(packet.payload[7:], cameraPort)
         #cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
-        self.syncTask.start(5)
 
     def processPacket(self, packets, cameraPort):
         for packet in packets:
