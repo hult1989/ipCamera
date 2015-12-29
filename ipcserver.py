@@ -77,7 +77,7 @@ class IpcServer(Protocol):
                 session.cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
                 return
             if FileStatus.PENDING in session.fileList.values():
-                print  ('camera busy, some file in transmission')
+                print  ('camera %s busy, some file in transmission' %(session.cameraId))
                 continue
             for name in session.fileList:
                 if session.fileList[name] == FileStatus.NXIST:

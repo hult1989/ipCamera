@@ -35,6 +35,7 @@ class AppProxy(Protocol):
 
     def respWithCachedFile(self, appPort, filePath):
         print 'response with cached file'.center(40, '*')
+        log.msg('**** cached file %s ****' %(filePath))
         with open(filePath) as f:
             filePayload = f.read()
         for packetPayload in buffer2packets(filePayload):
