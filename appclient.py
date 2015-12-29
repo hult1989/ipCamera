@@ -163,6 +163,8 @@ class AppClient(Protocol):
                 print '===== ack recevied from server, connected with server ===='
             elif isinstance(packet, HelloErrPacket):
                 print '===== target camera not online ===='
+            elif isinstance(packet, FileListErrPacket):
+                print '==== %s ====' %(packet.payload)
 
 
     def checkProcess(self):

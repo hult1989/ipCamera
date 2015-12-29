@@ -44,6 +44,7 @@ class Camera(Protocol):
         if isinstance(packet, GetListCmdPacket):
             payload = generateFileListPayload(getFileList('audio'))
             print 'response with file list'
+            #time.sleep(10)
             for packetStr in buffer2packets(payload):
                 packetStr = str(FileListPacket(packetStr))
                 self.transport.write(packetStr)
@@ -82,9 +83,9 @@ class Camera(Protocol):
         print data
         self.buf += data
         packet, self.buf = getOnePacketFromBuf(self.buf)
-        if not packet:
-            return
-        self.processPacket(packet)
+        while packet:
+            self.processPacket(packet)
+            packet, self.buf = getOnePacketFromBuf(self.buf)
 
         
 

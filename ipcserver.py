@@ -11,9 +11,6 @@ from Session import *
 import os
 
 
-
-
-
 class IpcServer(Protocol):
     class InputPanel(object):
         def __init__(self, sessionList):
@@ -76,10 +73,25 @@ class IpcServer(Protocol):
 
     def activeSyncFile(self):
         for session in self.sessionList.getAllSession():
+            if len(session.fileList) == 0:
+                return
+            if FileStatus.PENDING in session.fileList.values():
+                print  ('camera busy, some file in transmission')
+                continue
             for name in session.fileList:
+                if session.fileList[name] == FileStatus.NXIST:
+                    print 'REQUEST FILE %s' %(name,)
+                    session.cameraPort.write(str(GetFileCmdPacket(NamePayload(name))))
+                    session.fileList[name] = FileStatus.PENDING
+                    assert name == session.getPendingName(), 'PENDING NAME ERROR!!!'
+                    break
+
+                '''
+
                 packet = GetFileCmdPacket(str(IpcPacket(NamePayload(name))))
                 session.cameraPort.write(str(packet))
                 log.msg('==== sync with camera %s for file %s ====' %(session.cameraId, name))
+                '''
 
     def cameraConnected(self, cameraId, cameraPort):
         self.sessionList.addSession(cameraId, Session(cameraId, cameraPort))
@@ -94,66 +106,60 @@ class IpcServer(Protocol):
             i += 1
         log.msg('====================================')
         cameraPort.write(str(HelloAckPacket(addHeader('', 0))))
-        #syncTask = task.LoopingCall(self.activeSyncFile)
-        #syncTask.start(60)
 
     def processFileListPacket(self, packet, cameraPort):
         session = self.sessionList.getSessionByCamPort(cameraPort)
-        for port in session.getAllAppPorts():
-            try:
-                port.write(str(packet))
-            except Exception as e:
-                log.msg('Error in write to app port, %s' %(str(e)))
-        #session.getActiveApp().write(str(packet))
 
-        if session.conversion.unfinished is None:
-            session.conversion.unfinished = packet.totalMsgSize
-            session.conversion.cvsnBuf = ''
+        if session.sessBuf is None:
+            session.sessBuf = ''
+            session.unfinished = packet.totalMsgSize
             with open('./namelist.log', 'a') as f:
-                f.write('\n' + str(time.time()) + '\trequest file list')
+                f.write('\n[ ' + str(time.time()) + ' ]  server request file list')
 
-        session.conversion.unfinished -= packet.payloadSize
-        session.conversion.cvsnBuf += packet.payload
+        session.unfinished -= packet.payloadSize
+        session.sessBuf += packet.payload
 
-        if session.conversion.unfinished <= 0:
-            for name in getFileListFromPayload(session.conversion.cvsnBuf):
+        if session.unfinished <= 0:
+            for name in getFileListFromPayload(session.sessBuf):
                 if name not in session.fileList:
-                    session.fileList.append(name)
+                    if not os.path.exists('/'.join(('./cached' , str(hash(session.cameraId)),  name))):
+                        session.fileList[name] = FileStatus.NXIST
+                    else:
+                        session.fileList[name] = FileStatus.EXIST
             with open('./namelist.log', 'a') as f:
                 for name in session.fileList:
                     f.write(name+'\n')
-                f.write('\n' + str(time.time()) + '\tfinish file list')
-            session.conversion = None
+                f.write('\n[ ' + str(time.time()) + ' ] finish file list')
+            session.sessBuf = None
+            session.unfinished = None
             log.msg('=== %s has file %s ===' %(session.cameraId, str(session.fileList)))
             print '======= LIST Conversion CLOSED ========'
 
     def processFilePacket(self, packet, cameraPort):
         session = self.sessionList.getSessionByCamPort(cameraPort)
-        for port in session.getAllAppPorts():
-            try:
-                port.write(str(packet))
-            except Exception as e:
-                log.msg('Error in write to app port, %s' %(str(e)))
         #time.sleep(0.01)
         #session.getActiveApp().write(str(packet))
         session.bandwidthTester.bandwithCalc(packet.payloadSize)
-        filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename + '.tmp'
-        if session.conversion.unfinished is None:
+        filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.getPendingName() + '.tmp'
+        if session.unfinished is None:
             print '======== first file packet  ========'
-            session.conversion.unfinished = packet.totalMsgSize
-            with open(filepath, 'w') as f:
-                f.write('')
-        session.conversion.unfinished -= packet.payloadSize
-        with open(filepath, 'a') as f:
-            f.write(packet.payload)
+            session.unfinished = packet.totalMsgSize
+            session.sessBuf = list()
+        session.unfinished -= packet.payloadSize
+        session.sessBuf.append(packet.payload)
         #print '======== %d B to be transported ========' %(session.conversion.unfinished)
-        if session.conversion.unfinished <= 0:
+        if session.unfinished <= 0:
             print '======== last file packet  ========'
-            filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.conversion.filename 
-            renameCmd = 'mv %s.tmp %s' %(filepath, filepath)
-            os.system(renameCmd) 
-            session.conversion = None
+            filepath = './cached/' + str(hash(session.cameraId)) + '/' + session.getPendingName()
+            with open(filepath, 'w') as f:
+                for p in session.sessBuf:
+                    f.write(p)
+            session.unfinished = None
+            session.sessBuf = None
+            session.fileList[session.getPendingName()] = FileStatus.EXIST
+            assert session.getPendingName() is None, 'status ERROR in %s' %(session.getPendingName())
             print '======= FILE Conversion CLOSED ========'
+            log.msg('=== %s has file %s ===' %(session.cameraId, str(session.fileList)))
 
     def processStreamingPacket(self,packet, cameraPort):
         #print '========  streaming ========='
@@ -167,12 +173,18 @@ class IpcServer(Protocol):
             for port in session.getStreamingClient():
                 port.write(str(packet))
 
+    def processHelloPacket(self, packet, cameraPort):
+        self.cameraConnected(packet.payload[7:], cameraPort)
+        cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
+
     def processPacket(self, packets, cameraPort):
         for packet in packets:
             if isinstance(packet, HelloPacket):
-                self.cameraConnected(packet.payload[7:], cameraPort)
+                self.processHelloPacket(packet, cameraPort)
             elif isinstance(packet, FileListPacket):
                 self.processFileListPacket(packet, cameraPort)
+                syncTask = task.LoopingCall(self.activeSyncFile)
+                syncTask.start(5)
             elif isinstance(packet, FilePacket):
                 self.processFilePacket(packet, cameraPort)
             elif isinstance(packet, VideoStreamingPacket):

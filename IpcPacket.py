@@ -51,6 +51,13 @@ class IpcPacket(object):
         for s in vars(self).values:
             yield str(s)
 
+class FileListErrPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x02'
+        self.cmd = '\x01'
+        self.status = '\x01'
+
 
 class FileListPacket(IpcPacket):
     def __init__(self, packet):
@@ -195,8 +202,10 @@ def getPacketFromFactory(strMsg):
         elif packet.cmd == '\x03':
             return GetStreamingPacket(str(packet))
     elif packet.action == '\x02':
-        if packet.cmd == '\x01':
+        if packet.cmd == '\x01' and packet.status == '\x00':
             return FileListPacket(str(packet))
+        if packet.cmd == '\x01' and packet.status == '\x01':
+            return FileListErrPacket(str(packet))
         elif packet.cmd == '\x02':
             return FilePacket(str(packet))
         elif packet.cmd == '\x03':

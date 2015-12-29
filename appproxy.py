@@ -65,28 +65,16 @@ class AppProxy(Protocol):
                 session.conversion.appPort = appPort
                 cameraPort.write(str(packet))
             else:
-                appPort.write('Camera busy, wait a minute')
+                errPacket = FileListErrPacket(IpcPacket(addHeader('camera busy', 11)))
+                appPort.write(str(errPacket))
 
     def processGetListPacket(self, packet, appPort):
         session = self.sessionList.getSessionByAppPort(appPort)
-        cameraPort = session.cameraPort
-        if session.conversion is None:
-            print '======= LIST Conversion OPEN ========'
-            appId = session.getAppIdByPort(appPort)
-            session.conversion = Session.Conversion(appPort, appId, cameraPort, Session.RQSTLIST)
-            session.conversion.state = Session.RQSTLIST
-            cameraPort.write(str(packet))
-        elif session.getAppIdByPort(appPort) == session.conversion.appId:
-            cameraPort.write(str(packet))
-        else:
-            appId = session.getAppIdByPort(appPort)
-            if session.conversion.appId == appId:
-                print '=== FRESH CONVERSION ==='
-                session.conversion.appPort = appPort
-                cameraPort.write(str(packet))
-            else:
-                appPort.write('Camera busy, wait a minute')
-
+        payload = ''
+        for name in session.fileList:
+            payload += name
+            payload += '\x00' * (32-len(name))
+        appPort.write(str(FileListPacket(addHeader(payload, len(payload)))))
 
 
     def processPacket(self, packets, appPort):

@@ -1,5 +1,11 @@
 from util.BandwidthTester import BandwidthTester
 
+class FileStatus(object):
+    PENDING = 0
+    NXIST = -1
+    EXIST = 1
+
+
 class Session(object):
     RQSTLIST = 1
     RQSTFILE = 2
@@ -21,11 +27,18 @@ class Session(object):
         self.cameraId = cameraId
         self.cameraPort = cameraPort 
         self.appPorts = dict()
-        self.sessBuf = ''
+        self.sessBuf = None
         self.conversion = None
         self.streamingClients = []
         self.bandwidthTester = BandwidthTester()
-        self.fileList = list()
+        self.fileList = dict()
+        self.unfinished = None
+
+    def getPendingName(self):
+        for name in self.fileList:
+            if self.fileList[name] == FileStatus.PENDING:
+                return name
+        return None
 
     def getCachePath(self):
         return '/'.join(('./cached', str(hash(self.cameraId))))
