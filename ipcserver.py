@@ -62,6 +62,7 @@ class IpcServer(Protocol):
         self.serverBuf = dict()
         self.sent = None
         self.inputPanel = IpcServer.InputPanel(None)
+        self.syncTask = task.LoopingCall(self.activeSyncFile)
 
     def connectionLost(self, reason):
         #log.msg('connection Lost with: ' + str(self.session.cameraTransport))
@@ -73,6 +74,8 @@ class IpcServer(Protocol):
 
     def activeSyncFile(self):
         for session in self.sessionList.getAllSession():
+            if not session:
+                continue
             if len(session.fileList) == 0:
                 session.cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
                 return
@@ -122,6 +125,8 @@ class IpcServer(Protocol):
 
         if session.unfinished <= 0:
             for name in getFileListFromPayload(session.sessBuf):
+                if not name.endswith('MP4'):
+                    continue
                 if name not in session.fileList:
                     if not os.path.exists('/'.join(('./cached' , str(hash(session.cameraId)),  name))):
                         session.fileList[name] = FileStatus.NXIST
@@ -176,7 +181,8 @@ class IpcServer(Protocol):
 
     def processHelloPacket(self, packet, cameraPort):
         self.cameraConnected(packet.payload[7:], cameraPort)
-        cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
+        #cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
+        self.syncTask.start(5)
 
     def processPacket(self, packets, cameraPort):
         for packet in packets:
@@ -184,8 +190,6 @@ class IpcServer(Protocol):
                 self.processHelloPacket(packet, cameraPort)
             elif isinstance(packet, FileListPacket):
                 self.processFileListPacket(packet, cameraPort)
-                syncTask = task.LoopingCall(self.activeSyncFile)
-                syncTask.start(5)
             elif isinstance(packet, FilePacket):
                 self.processFilePacket(packet, cameraPort)
             elif isinstance(packet, VideoStreamingPacket):
@@ -197,7 +201,10 @@ class IpcServer(Protocol):
         self.serverBuf[str(self.transport)] += data
         packets, self.serverBuf[str(self.transport)] = getAllPacketFromBuf(self.serverBuf[str(self.transport)])
         if not packets:
-            log.msg('NO PACKETS, but raw: %s' %(str(data)))
+            temp = list()
+            for c in data:
+                temp.append(hex(ord(c)))
+            log.msg('NO PACKETS, but raw: %s' %(str(temp)))
         else:
             self.processPacket(packets, self.transport)
 
