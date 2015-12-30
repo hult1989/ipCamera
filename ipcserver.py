@@ -182,7 +182,7 @@ class IpcServer(Protocol):
     def processHelloPacket(self, packet, cameraPort):
         self.cameraConnected(packet.payload[7:], cameraPort)
         session = self.sessionList.getSessionByCamPort(cameraPort)
-        if len(session.getStreamingClient) == 0:
+        if len(session.getStreamingClient()) == 0:
             cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
 
     def processPacket(self, packets, cameraPort):

@@ -43,7 +43,8 @@ class AppProxy(Protocol):
             appPort.write(packet)
         print 'response finished'.center(40, '*')
 
-
+    def respWithFileUrl(self, appPort, filePath):
+        appPort.write('http://116.7.225.58:8080/' + filePath[9:])
 
     def processGetFilePacket(self, packet, appPort):
         session = self.sessionList.getSessionByAppPort(appPort)
@@ -51,7 +52,8 @@ class AppProxy(Protocol):
         filename = packet.payload[:packet.payload.find('\x00')]
         filePath= '/'.join((session.getCachePath(), filename))
         if os.path.exists(filePath):
-            self.respWithCachedFile(appPort, filePath)
+            #self.respWithCachedFile(appPort, filePath)
+            self.respWithFileUrl(appPort, filePath)
         '''
         elif session.conversion is None:
             print '======= FILE Conversion OPEN ========'

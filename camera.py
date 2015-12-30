@@ -6,8 +6,8 @@ import os, time
 
 from  IpcPacket import *
 
-domain = 'huahai'
-#domain = 'localhost'
+#domain = 'huahai'
+domain = 'localhost'
 
 def socketSendInPartial(sock, message):
     alreadySent = 0
@@ -21,7 +21,7 @@ def readFileToDictBuf(path):
     for name in getFileList(path):
         with open('/'.join((path, name))) as f:
             dictBuf[name] = f.read()
-    with open('./audio/mk9.mp4') as f:
+    with open('./video/mk9.mp4') as f:
         videoBuf = f.read()
         print 'video: mk9.mp4, buf size: ', len(videoBuf)
     return dictBuf, videoBuf
