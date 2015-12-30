@@ -114,9 +114,13 @@ class AppClient(Protocol):
         if self.fileSize == 0:
             self.fileSize = None
             self.tester = None
+            for buf in self.fileBuf:
+                print buf
+            '''
             with open('./video/' + self.fileName, 'w') as f:
                 for buf in self.fileBuf:
                     f.write(buf)
+            '''
                 self.fileBuf = list()
             self.fileBuf = None
             print '========= ALL FILE ACCEPTED =============='
@@ -202,8 +206,8 @@ class AppClientFactory(ClientFactory):
 
 
 def main(reactor):
-    domain = 'localhost'
-    #domain = 'huahai'
+    #domain = 'localhost'
+    domain = 'huahai'
     from stdin import Echo
     factory = AppClientFactory()
     reactor.connectTCP(domain, 8084, factory)

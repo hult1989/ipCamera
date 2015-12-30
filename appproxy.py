@@ -44,7 +44,9 @@ class AppProxy(Protocol):
         print 'response finished'.center(40, '*')
 
     def respWithFileUrl(self, appPort, filePath):
-        appPort.write('http://116.7.225.58:8080/' + filePath[9:])
+        url = 'http://116.7.225.58:8082/' + filePath[9:]
+        msg = str(FilePacket(addHeader(url, len(url))))
+        appPort.write(msg)
 
     def processGetFilePacket(self, packet, appPort):
         session = self.sessionList.getSessionByAppPort(appPort)
