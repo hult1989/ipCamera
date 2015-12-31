@@ -58,8 +58,8 @@ class InputPanel(object):
         self.nameList = nameList
 
     def connectToCamera(self):
-        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x00', 13))))
-        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x00', 13))))
+        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
         self.cameraPort.write(str(helloPacket))
 
     def sendRawInput(self, i):
@@ -120,8 +120,8 @@ class AppClient(Protocol):
             with open('./video/' + self.fileName, 'w') as f:
                 for buf in self.fileBuf:
                     f.write(buf)
-            '''
                 self.fileBuf = list()
+            '''
             self.fileBuf = None
             print '========= ALL FILE ACCEPTED =============='
 

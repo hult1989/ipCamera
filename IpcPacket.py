@@ -94,6 +94,13 @@ class FilePacket(IpcPacket):
         self.action = '\x02'
         self.cmd = '\x02'
 
+class FileErrPacket(IpcPacket):
+    def __init__(self, packet):
+        IpcPacket.__init__(self, str(packet))
+        self.action = '\x02'
+        self.cmd = '\x02'
+        self.status = '\x01'
+
 
 class GetStreamingPacket(IpcPacket):
     def __init__(self, packet):
@@ -206,8 +213,10 @@ def getPacketFromFactory(strMsg):
             return FileListPacket(str(packet))
         if packet.cmd == '\x01' and packet.status == '\x01':
             return FileListErrPacket(str(packet))
-        elif packet.cmd == '\x02':
+        elif packet.cmd == '\x02' and packet.status == '\x00':
             return FilePacket(str(packet))
+        elif packet.cmd == '\x02' and packet.status == '\x01':
+            return FileErrPacket(str(packet))
         elif packet.cmd == '\x03':
             return VideoStreamingPacket(str(packet))
     elif packet.action == '\x03':
@@ -288,8 +297,9 @@ if __name__ == '__main__':
     print 'TAIL LEFT: \t', strMsg
     print 'LEFT SIZE: \t', len(strMsg)
     '''
-    for name in getFileListFromPayload('asdfsafasdfsdf\x00\x00\x00\x00'):
-        print name
+    msg =str(FilePacket(addHeader('', 0)))
+    packets, msg = getAllPacketFromBuf(msg)
+    print packets[0].__class__
 
 
         

@@ -51,9 +51,13 @@ class Camera(Protocol):
         elif isinstance(packet, GetFileCmdPacket):
             name = packet.payload[:packet.payload.find('\x00')]
             print name, ' response with file request, len: ', len(self.fileBuf[name])
-            for packetPayload in buffer2packets(self.fileBuf[name]):
-                packetPayload = str(FilePacket(packetPayload))
-                self.transport.write(packetPayload)
+            if len(self.fileBuf[name]) != 0:
+                for packetPayload in buffer2packets(self.fileBuf[name]):
+                    packetPayload = str(FilePacket(packetPayload))
+                    self.transport.write(packetPayload)
+            else:
+                print 'length is zero, send file err packet'
+                self.transport.write(str(FileErrPacket(addHeader('', 0))))
                 #time.sleep(0.001)
             print 'all file sended!'
         elif isinstance(packet, GetStreamingPacket):

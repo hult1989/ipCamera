@@ -1,0 +1,22 @@
+{
+	"appkey":"56823bdce0f55adc18002599",      
+	"timestamp":"",    
+	"type":"unicast",                                  
+	"device_tokens":"Al_R8VsPSEqAYmxicJ-DSMM3nlCg3D9tNq8veR-CDMzO",
+	"payload": {
+		"display_type":"notification", 
+		"body": {
+			"ticker":"摄像头有新发现",     
+			"title":"摄像头上传了新文件",      
+			"text":"打开app下载并查看文件",       
+			"after_open": "go_activity",
+			"activity":"com.hhtc.common.ui.MainActivity"
+		},
+		"extra": {
+			"file1", "url"
+		}
+	},
+	"production_mode":"false",
+	"description": "test",      
+	"thirdparty_id": "1"   
+}

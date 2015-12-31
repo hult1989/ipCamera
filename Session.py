@@ -4,6 +4,7 @@ class FileStatus(object):
     PENDING = 0
     NXIST = -1
     EXIST = 1
+    ERROR = -2
 
 
 class Session(object):
