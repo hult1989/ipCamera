@@ -28,9 +28,10 @@ class Session(object):
         self.cameraId = cameraId
         self.cameraPort = cameraPort 
         self.appPorts = dict()
+        self.appLastPushTime = dict()
         self.sessBuf = None
         self.conversion = None
-        self.streamingClients = []
+        self.streamingClients = set()
         self.bandwidthTester = BandwidthTester()
         self.fileList = dict()
         self.unfinished = None
@@ -71,14 +72,14 @@ class Session(object):
         else:
             return None
 
-    def removeStreamingClient(self, appPort):
-        self.streamingClients.remove(appPort)
+    def removeStreamingClient(self, appId):
+        self.streamingClients.remove(appId)
 
-    def addStreamingClient(self, appPort):
-        self.streamingClients.append(appPort)
+    def addStreamingClient(self, appId):
+        self.streamingClients.add(appId)
 
     def getStreamingClient(self):
-        return self.streamingClients
+        return list(self.streamingClients)
 
 class SessionList(object):
     def __init__(self):

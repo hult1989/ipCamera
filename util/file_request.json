@@ -13,7 +13,7 @@
 			"activity":"com.hhtc.common.ui.MainActivity"
 		},
 		"extra": {
-			"file1", "url"
+			"file1": "url"
 		}
 	},
 	"production_mode":"false",

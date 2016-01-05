@@ -30,7 +30,7 @@ class AppProxy(Protocol):
         log.msg('reason: ', str(reason))
    
     def connectionMade(self):
-        log.msg('==== %s connected ====' %(str(self.transport)))
+        log.msg('====APP %s CONNECTED ====' %(str(self.transport.client)))
         #self.transport.loseConnection()
 
     def respWithCachedFile(self, appPort, filePath):
@@ -79,8 +79,9 @@ class AppProxy(Protocol):
         session = self.sessionList.getSessionByAppPort(appPort)
         payload = ''
         for name in session.fileList:
-            payload += name
-            payload += '\x00' * (32-len(name))
+            if session.fileList[name] == FileStatus.EXIST:
+                payload += name
+                payload += '\x00' * (32-len(name))
         appPort.write(str(FileListPacket(addHeader(payload, len(payload)))))
 
 
@@ -96,7 +97,8 @@ class AppProxy(Protocol):
                 self.processGetFilePacket(packet, appPort)
             elif isinstance(packet, GetStreamingPacket):
                 session = self.sessionList.getSessionByAppPort(appPort)
-                session.addStreamingClient(appPort)
+                appId = session.getAppIdByPort(appPort)
+                session.addStreamingClient(appId)
                 cameraPort = session.cameraPort
                 cameraPort.write(str(packet))
                 log.msg('==== Steaming Clients %s ====' %(str(session.getStreamingClient())))
@@ -104,8 +106,10 @@ class AppProxy(Protocol):
                 session = self.sessionList.getSessionByAppPort(appPort)
                 print '====== dropping streaming client ===='
                 cameraPort = session.cameraPort
-                cameraPort.write(str(packet))
-                session.removeStreamingClient(appPort)
+                appId = session.getAppIdByPort(appPort)
+                session.removeStreamingClient(appId)
+                if len(session.getStreamingClient()) == 0:
+                    cameraPort.write(str(packet))
 
 
 
@@ -119,12 +123,17 @@ class AppProxy(Protocol):
         else:
             appPort.write(str(HelloAckPacket(addHeader('', 0))))
             self.sessionList.getSessionByCamId(cameraId).addAppTransport(appId, appPort)
+            log.msg(' *** %s has connected appports : *** ' %(str(list(cameraId))))
+            for (appId, port) in self.sessionList.getSessionByCamId(cameraId).appPorts.items():
+                log.msg(' *** port %s -- %s connected ***' %(appId, str(port.client)))
+            log.msg('-----------------------------------------------------')
             log.msg('=== ONLINE SESSION: %s ===' %(vars(self.sessionList.getSessionByCamId(cameraId))))
         #else:
             #raise Exception('App already exists in session')
 
 
     def dataReceived(self, data):
+
         if not self.serverBuf.has_key(str(self.transport)):
             self.serverBuf[str(self.transport)] = ''
         self.serverBuf[str(self.transport)] += data
@@ -133,6 +142,10 @@ class AppProxy(Protocol):
             self.processPacket(packets, self.transport)
         else:
             log.msg( '======== server received data: %s      ========' %(str(data)))
+            if data.find('force') != -1:
+                for session in self.sessionList.sessions.values():
+                    session.cameraPort.write(str(CloseStreamingPacket(addHeader('', 0))))
+                log.msg('--------- force all camera stop streaming -------------')
 
 if __name__ == '__main__':
     SESSIONLIST = SessionList()
