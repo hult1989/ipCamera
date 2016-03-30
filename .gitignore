@@ -5,4 +5,5 @@ cached
 *.mp3
 *.pyc
 *.log
+*.pid
 appCache
