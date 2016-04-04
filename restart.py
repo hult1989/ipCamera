@@ -1,6 +1,6 @@
 import os
 
 os.system('python ./stop.py')
-os.system('sh start.sh')
+os.system('python start.py')
 
 

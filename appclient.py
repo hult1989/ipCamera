@@ -8,6 +8,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet.protocol import ClientFactory, Protocol
 from twisted.protocols.basic import LineReceiver
 import os.path
+import os
 import time, random
 
 from IpcPacket import *
@@ -23,7 +24,7 @@ class InputPanel(object):
         self.cameraPort = cameraPort
         self.nameList = None
         #self.appId = str(random.randint(100000, 999999))
-        self.appId = 'julian'
+        self.appId = 'Camera'
 
     def setCameraPort(self, cameraPort):
         self.cameraPort = cameraPort
@@ -58,8 +59,8 @@ class InputPanel(object):
         self.nameList = nameList
 
     def connectToCamera(self):
-        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x6b', 13))))
-        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
+        #helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_\x94\xa1\xa2:\x14\x6b', 13))))
+        helloPacket = HelloPacket(str(IpcPacket(addHeader(self.appId + '_890924', 13))))
         self.cameraPort.write(str(helloPacket))
 
     def sendRawInput(self, i):
@@ -82,7 +83,7 @@ class InputPanel(object):
         elif cmd == 'close':
             self.closeVideoStreaming()
         elif cmd == 'exit':
-            exit()
+            os._exit(0)
         else:
             self.sendRawInput(cmd)
 
@@ -103,6 +104,7 @@ class AppClient(Protocol):
 
 
     def processFilePacket(self, packet):
+        print packet.payloadSize
         if self.fileSize is None:
             self.fileBuf = list()
             print '========= RECEIVINT FILE =============='
@@ -116,12 +118,10 @@ class AppClient(Protocol):
             self.tester = None
             for buf in self.fileBuf:
                 print buf
-            '''
-            with open('./video/' + self.fileName, 'w') as f:
+            with open('./video/' + self.fileName, 'a') as f:
                 for buf in self.fileBuf:
                     f.write(buf)
                 self.fileBuf = list()
-            '''
             self.fileBuf = None
             print '========= ALL FILE ACCEPTED =============='
 
@@ -206,9 +206,9 @@ class AppClientFactory(ClientFactory):
 
 
 def main(reactor):
-    #domain = 'localhost'
-    domain = 'huahai'
-    from stdin import Echo
+    domain = 'localhost'
+    #domain = 'huahai'
+    from util.stdin import Echo
     factory = AppClientFactory()
     reactor.connectTCP(domain, 8084, factory)
     stdio.StandardIO(Echo(factory.protocol.inputPanel))

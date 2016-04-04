@@ -2,34 +2,16 @@ import os.path
 import random
 import struct
 
-##############################################
-class PayloadSizeError(Exception):
-    def __init__(self, args=None):
-        super(Exception, self).__init__(args)
-
-class IllLegalPacket(Exception):
-    def __init__(self, args=None):
-        super(Exception, self).__init__(args)
+from common import IpcException
 
 
-#############################################
 class IpcPacket(object):
     CONNECTED = 'camera connected'
     ERROR = '\x01'
     OK = '\x00'
     MSGHEAD = '\x55\xaa'
+    HEADER_LENGTH = 12
     def __init__(self, strMsg):
-        if strMsg < 12:
-            return None
-        if strMsg.find(IpcPacket.MSGHEAD) == -1:
-            return None
-        strMsg = strMsg[strMsg.find(IpcPacket.MSGHEAD):]
-        payloadsize = struct.unpack('!H', strMsg[8:10])[0]
-        if payloadsize + 12 > len(strMsg):
-            return None
-        if payloadsize + 12 < len(strMsg):
-            strMsg = strMsg[:payloadsize+12]
-
         self.version = strMsg[0:2]
         self.action = strMsg[2]
         self.isEncrypted = True if strMsg[3] == '\x01' else False
@@ -39,7 +21,7 @@ class IpcPacket(object):
         self.status = strMsg[11]
         self.payload = strMsg[12:]
 
-    def __repr__(self):
+    def __str__(self):
         msg = self.version + self.action 
         msg += '\x01' if self.isEncrypted is True else '\x00'
         msg += struct.pack('!I', self.totalMsgSize)
@@ -67,14 +49,13 @@ class FileListPacket(IpcPacket):
 
     def getFileListFromPacket(self):
         if self.payloadSize != len(self.payload):
-            raise PayloadSizeError
+            raise IpcPacket.PayloadSizeError
         fileCount = self.payloadSize / 32
-        fileList = list()
         for i in range(fileCount):
             filename = self.payload[i*32: (i+1)*32]
-            #print filename[:filename.find('\x00')]
-            #yield str(filename)
             yield filename[:filename.find('\x00')]
+    
+    filenames = getFileListFromPacket
 
 class GetListCmdPacket(IpcPacket):
     def __init__(self, packet):
@@ -146,23 +127,6 @@ class HelloErrPacket(IpcPacket):
 
 NamePayload = lambda name: addHeader(name + '\x00' * (32-len(name)), 32)
 
-def getFileList(path):
-    '''return a list with file names'''
-    result = []
-    for name in os.listdir(path):
-        result.append(name)
-        #result.append('/'.join((path, name)))
-    return result
-
-
-def generateFileSlice(buf):
-    '''cut file into several pieces, each piece less than 1KB, yield file file pieces'''
-    generated = 0
-    while generated < len(buf):
-        #pieceSize = 32 * random.randint(24, 32)
-        pieceSize = 1 * 1024
-        yield buf[generated: generated + pieceSize]
-        generated += pieceSize
 
 def addHeader(fileSlice, totalSize):
     result = '\x55\xaa\x00\x00' + struct.pack('!I', totalSize) + struct.pack('!H', len(fileSlice)) + '\x00' + '\x00' + fileSlice
@@ -171,10 +135,18 @@ def addHeader(fileSlice, totalSize):
 def generatePacketWithHeader(filename):
     with open(filename) as f:
         buf = f.read()
-    yield buffer2packets(buf)
+    yield buffer2packetStr(buf)
 
 
-def buffer2packets(buf):
+def buffer2packetStr(buf):
+    def generateFileSlice(buf):
+        generated = 0
+        while generated < len(buf):
+            #pieceSize = 32 * random.randint(24, 32)
+            pieceSize = 1 * 1024
+            yield buf[generated: generated + pieceSize]
+            generated += pieceSize
+
     unfinished = len(buf)
     for fileSlice in generateFileSlice(buf):
         yield addHeader(fileSlice, unfinished)
@@ -185,11 +157,9 @@ def buffer2packets(buf):
 def generateFileListPayload(namelist):
     payload = ''
     for name in namelist:
-        #print 'ORGINAL FILE NAME IS: ', name
         assert len(name) < 32, 'NAME LENGTH ERROR ' + name
         if len(name) < 32:
             payload += name + '\x00' * (32 - len(name))
-            #print 'name in payload is: ', payload[-32:]
     return payload
 
 def getPacketFromFactory(strMsg):
@@ -251,59 +221,34 @@ def getFileListFromPayload(payload):
 
 
 def getOnePacketFromBuf(buf):
-    try:
-        start = buf.find(IpcPacket.MSGHEAD)
-    except:
+    start = buf.find(IpcPacket.MSGHEAD)
+    if (start == -1) or (start + IpcPacket.HEADER_LENGTH > len(buf)):
         return None, buf
-    if (start == -1) or (start + 12 > len(buf)):
-        return None, buf
-    msgEnd  = start + struct.unpack('!H', buf[start+8:start+10])[0] + 12
+    
+    payloadSize = struct.unpack('!H', buf[start+8:start+10])[0] 
+    msgEnd = start + IpcPacket.HEADER_LENGTH + payloadSize
     if msgEnd > len(buf):
         return None, buf
     return getPacketFromFactory(buf[start:msgEnd]), buf[msgEnd:]
 
 
 def getAllPacketFromBuf(buf):
-    packet, buf = getOnePacketFromBuf(buf)
-    packets = list()
-    while packet:
-        packets.append(packet)
-        packet, buf = getOnePacketFromBuf(buf)
-    return (None, buf) if len(packets) == 0 else (packets, buf)
+    pkt, buf = getOnePacketFromBuf(buf)
+    packets = []
+    while pkt:
+        packets.append(pkt)
+        pkt, buf = getOnePacketFromBuf(buf)
+    return (None, buf) if not packets else (packets, buf)
 
 
 
 if __name__ == '__main__':
 
-    '''
-    print 'ABOVE IS DIRECT READ FROM PAYLOAD==============='
-    print 'BELOW IS READ FROM PAYLOAD======================'
-    i = 0
-    while i < len(payload) / 32:
-        print payload[i*32: (1+i)*32]
-        i += 1
-    #print 'TOTAL PAYLOAD SIZE OF NANE LIST IS : ', len(payload)
-
-    with open('./testMsg', 'r') as f:
+    with open('./test/testMsg', 'r') as f:
         strMsg = f.read()
-    strMsg = 'fafadsfasdfhalksdfsalkdhfasjkldfhsa;flj' + strMsg + 'tail' + strMsg + 'alsd'
-    packets, strMsg = getAllPacketFromBuf(strMsg)
-    for p in packets:
-        print p.__class__
-        print p.totalMsgSize
-        print p.payloadSize
-
-    print '============LEFT TAIL=================='
-    print 'TAIL LEFT: \t', strMsg
-    print 'LEFT SIZE: \t', len(strMsg)
-    '''
-    msg =str(FilePacket(addHeader('', 0)))
-    packets, msg = getAllPacketFromBuf(msg)
-    print packets[0].__class__
-
-
-        
-
-    
+    packets, buf = getAllPacketFromBuf(strMsg)
+    p = packets[0]
+    for p in p.filenames():
+        print p
 
 

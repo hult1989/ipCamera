@@ -163,8 +163,10 @@ class IpcServer(Protocol):
 
         if session.unfinished <= 0:
             for name in getFileListFromPayload(session.sessBuf):
+                '''
                 if not name.endswith('MP4'):
                     continue
+                '''
                 if name not in session.fileList:
                     if not os.path.exists('/'.join(('./cached' , str(hash(session.cameraId)),  name))):
                         session.fileList[name] = FileStatus.NXIST
@@ -241,7 +243,7 @@ class IpcServer(Protocol):
     def processHelloPacket(self, packet, cameraPort):
         self.cameraConnected(packet.payload[7:], cameraPort)
         session = self.sessionList.getSessionByCamPort(cameraPort)
-	log.msg('^^^^^^ %s ^^^^^^^' %(str(vars(session))))
+	log.msg('====== %s =======' %(str(vars(session))))
         if len(session.getStreamingClient()) == 0:
 	    log.msg('*** send list request packet***')
             cameraPort.write(str(GetListCmdPacket(addHeader('', 0))))
@@ -252,16 +254,16 @@ class IpcServer(Protocol):
     def processPacket(self, packets, cameraPort):
         for packet in packets:
             if isinstance(packet, HelloPacket):
-		log.msg('==== accept hello packet')
+		log.msg('==== accept hello packet ====')
                 self.processHelloPacket(packet, cameraPort)
             elif isinstance(packet, FileListPacket):
-		log.msg('==== accept list packet')
+		log.msg('==== accept list packet ====')
                 self.processFileListPacket(packet, cameraPort)
             elif isinstance(packet, FilePacket):
 		#log.msg('==== accept file packet')
                 self.processFilePacket(packet, cameraPort)
             elif isinstance(packet, FileErrPacket):
-		log.msg('==== accept file err packet')
+		log.msg('==== accept file err packet ====')
                 self.processFileErrPacket(packet, cameraPort)
             elif isinstance(packet, VideoStreamingPacket):
                 self.processStreamingPacket(packet, cameraPort)
